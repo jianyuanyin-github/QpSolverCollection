@@ -1,0 +1,2 @@
+[submodule "common/qp_solver_tool"]
+	url = git@github.com:jianyuanyin-github/QpSolverCollection.git
