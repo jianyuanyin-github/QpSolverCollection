@@ -147,19 +147,31 @@ If building with ProxQP enabled fails with `Could NOT find Simde (missing: Simde
 2. Add the include path to your build command: `-DSimde_INCLUDE_DIR=/path/to/simde`
 
 #### NASOQ CMake configuration missing
-If you encounter `Could not find a package configuration file provided by "nasoq"`, this means you're using the wrong branch:
-1. The main NASOQ repository lacks proper CMake installation rules
-2. You must use the `cmake-install` branch from mmurooka's fork:
-   ```bash
-   git clone -b cmake-install https://github.com/mmurooka/nasoq.git
-   cd nasoq
-   mkdir build && cd build
-   cmake .. -DCMAKE_INSTALL_PREFIX=/usr/local
-   make install
-   ```
+If you encounter `Could NOT find nasoq (missing: nasoq_LIBRARY nasoq_EIGEN_INCLUDE_DIR nasoq_MAIN_INCLUDE_DIR)`:
+1. The official NASOQ repository doesn't provide `make install` by default
+2. You need to modify the paths in `cmake/Findnasoq.cmake`:
+   - Update `nasoq_EIGEN_INCLUDE_DIR` paths to point to your `nasoq/eigen_interface/include` directory
+   - Update `nasoq_MAIN_INCLUDE_DIR` paths to point to your `nasoq/include` directory  
+   - Update `nasoq_LIBRARY` paths to point to your `nasoq/lib` directory
 3. Alternatively, disable NASOQ if you don't need it: `-DENABLE_NASOQ=OFF`
+
+#### HPIPM CMake configuration missing
+If you encounter `Could NOT find hpipm (missing: hpipm_LIBRARY hpipm_INCLUDE_DIR)`:
+1. The official HPIPM repository doesn't provide `make install` by default
+2. You need to modify the paths in `cmake/Findhpipm.cmake`:
+   - Update `hpipm_INCLUDE_DIR` paths to point to your `hpipm/include` directory
+   - Update `hpipm_LIBRARY` paths to point to your `hpipm/lib` directory
+3. Alternatively, disable HPIPM if you don't need it: `-DENABLE_HPIPM=OFF`
+
+#### BLASFEO CMake configuration missing（HPIPM Dependency）  
+If you encounter `Could NOT find blasfeo (missing: blasfeo_LIBRARY blasfeo_INCLUDE_DIR)`:
+1. The official BLASFEO repository doesn't provide `make install` by default
+2. You need to modify the paths in `cmake/Findblasfeo.cmake`:
+   - Update `blasfeo_INCLUDE_DIR` paths to point to your `blasfeo/include` directory
+   - Update `blasfeo_LIBRARY` paths to point to your `blasfeo/lib` directory
+3. Alternatively, disable BLASFEO-dependent solvers if you don't need them: `-DENABLE_HPIPM=OFF`
 
 Example build command with all fixes:
 ```bash
-colcon build --packages-select qp_solver_collection --cmake-args -DCMAKE_BUILD_TYPE=Release -DENABLE_OSQP=ON -DUSE_ROS2=ON -DENABLE_QPOASES=ON -DENABLE_HPIPM=ON -DSimde_INCLUDE_DIR=/home/user/ocp_solver/simde --allow-overriding qp_solver_collection
+colcon build --packages-select qp_solver_collection --cmake-args -DCMAKE_BUILD_TYPE=Release -DENABLE_OSQP=ON -DUSE_ROS2=ON -DENABLE_QPOASES=ON -DENABLE_HPIPM=ON -DSimde_INCLUDE_DIR=/home/user/ocp_solver/simde qp_solver_collection
 ```

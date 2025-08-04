@@ -2,7 +2,6 @@
 find_path(nasoq_EIGEN_INCLUDE_DIR
     NAMES nasoq/nasoq_eigen.h
     PATHS 
-        ${CMAKE_CURRENT_SOURCE_DIR}/../../../../../../../ocp_solver/nasoq/eigen_interface/include
         ~/ocp_solver/nasoq/eigen_interface/include
         /usr/local/include
     DOC "nasoq eigen interface include directory"
@@ -11,7 +10,6 @@ find_path(nasoq_EIGEN_INCLUDE_DIR
 find_path(nasoq_MAIN_INCLUDE_DIR
     NAMES nasoq/nasoq.h
     PATHS 
-        ${CMAKE_CURRENT_SOURCE_DIR}/../../../../../../../ocp_solver/nasoq/include
         ~/ocp_solver/nasoq/include
         /usr/local/include
     DOC "nasoq main include directory"
@@ -20,7 +18,6 @@ find_path(nasoq_MAIN_INCLUDE_DIR
 find_library(nasoq_LIBRARY
     NAMES nasoq
     PATHS 
-        ${CMAKE_CURRENT_SOURCE_DIR}/../../../../../../../ocp_solver/nasoq/lib
         ~/ocp_solver/nasoq/lib
         /usr/local/lib
     DOC "nasoq library"

@@ -2,7 +2,6 @@
 find_path(blasfeo_INCLUDE_DIR
     NAMES blasfeo_common.h
     PATHS 
-        ${CMAKE_CURRENT_SOURCE_DIR}/../../../../../../../ocp_solver/blasfeo/include
         ~/ocp_solver/blasfeo/include
         /usr/local/include
     DOC "blasfeo include directory"
@@ -11,7 +10,6 @@ find_path(blasfeo_INCLUDE_DIR
 find_library(blasfeo_LIBRARY
     NAMES blasfeo
     PATHS 
-        ${CMAKE_CURRENT_SOURCE_DIR}/../../../../../../../ocp_solver/blasfeo/lib
         ~/ocp_solver/blasfeo/lib
         /usr/local/lib
     DOC "blasfeo library"

@@ -2,7 +2,6 @@
 find_path(hpipm_INCLUDE_DIR
     NAMES hpipm_d_ocp_qp.h
     PATHS 
-        ${CMAKE_CURRENT_SOURCE_DIR}/../../../../../../../ocp_solver/hpipm/include
         ~/ocp_solver/hpipm/include
         /usr/local/include
     DOC "hpipm include directory"
@@ -11,7 +10,6 @@ find_path(hpipm_INCLUDE_DIR
 find_library(hpipm_LIBRARY
     NAMES hpipm
     PATHS 
-        ${CMAKE_CURRENT_SOURCE_DIR}/../../../../../../../ocp_solver/hpipm/lib
         ~/ocp_solver/hpipm/lib
         /usr/local/lib
     DOC "hpipm library"
