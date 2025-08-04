@@ -173,5 +173,5 @@ If you encounter `Could NOT find blasfeo (missing: blasfeo_LIBRARY blasfeo_INCLU
 
 Example build command with all fixes:
 ```bash
-colcon build --packages-select qp_solver_collection --cmake-args -DCMAKE_BUILD_TYPE=Release -DENABLE_OSQP=ON -DUSE_ROS2=ON -DENABLE_QPOASES=ON -DENABLE_HPIPM=ON -DSimde_INCLUDE_DIR=/home/user/ocp_solver/simde qp_solver_collection
+colcon build --packages-select qp_solver_collection --cmake-args -DCMAKE_BUILD_TYPE=Release -DENABLE_OSQP=ON -DENABLE_QPOASES=ON -DENABLE_HPIPM=ON -DENABLE_NASOQ=ON -DENABLE_PROXQP=ON -DSimde_INCLUDE_DIR=/home/user/ocp_solver/simde qp_solver_collection
 ```
