@@ -3,14 +3,12 @@
 #include <qp_solver_collection/QpSolverOptions.h>
 
 #if ENABLE_HPIPM
-#  include <numeric>
+#include <hpipm_d_dense_qp_ipm.h>
+#include <qp_solver_collection/QpSolverCollection.h>
 
-#  include <qp_solver_collection/QpSolverCollection.h>
-
-#  include <hpipm_d_dense_qp_ipm.h>
+#include <numeric>
 
 using namespace QpSolverCollection;
-
 QpSolverHpipm::QpSolverHpipm()
 {
   type_ = QpSolverType::HPIPM;
@@ -20,26 +18,19 @@ QpSolverHpipm::QpSolverHpipm()
   ipm_arg_ = std::make_unique<struct d_dense_qp_ipm_arg>();
   ipm_ws_ = std::make_unique<struct d_dense_qp_ipm_ws>();
 }
-
-Eigen::VectorXd QpSolverHpipm::solve(int dim_var,
-                                     int dim_eq,
-                                     int dim_ineq,
-                                     Eigen::Ref<Eigen::MatrixXd> Q,
-                                     const Eigen::Ref<const Eigen::VectorXd> & c,
-                                     const Eigen::Ref<const Eigen::MatrixXd> & A,
-                                     const Eigen::Ref<const Eigen::VectorXd> & b,
-                                     const Eigen::Ref<const Eigen::MatrixXd> & C,
-                                     const Eigen::Ref<const Eigen::VectorXd> & d,
-                                     const Eigen::Ref<const Eigen::VectorXd> & x_min,
-                                     const Eigen::Ref<const Eigen::VectorXd> & x_max)
+Eigen::VectorXd QpSolverHpipm::solve(
+  int dim_var, int dim_eq, int dim_ineq, Eigen::Ref<Eigen::MatrixXd> Q,
+  const Eigen::Ref<const Eigen::VectorXd> & c, const Eigen::Ref<const Eigen::MatrixXd> & A,
+  const Eigen::Ref<const Eigen::VectorXd> & b, const Eigen::Ref<const Eigen::MatrixXd> & C,
+  const Eigen::Ref<const Eigen::VectorXd> & d, const Eigen::Ref<const Eigen::VectorXd> & x_min,
+  const Eigen::Ref<const Eigen::VectorXd> & x_max)
 {
   // Allocate memory
-  if(!(qp_dim_->nv == dim_var && qp_dim_->ne == dim_eq && qp_dim_->ng == dim_ineq))
-  {
+  if (!(qp_dim_->nv == dim_var && qp_dim_->ne == dim_eq && qp_dim_->ng == dim_ineq)) {
     int qp_dim_size = d_dense_qp_dim_memsize();
     qp_dim_mem_ = std::make_unique<uint8_t[]>(qp_dim_size);
     d_dense_qp_dim_create(qp_dim_.get(), qp_dim_mem_.get());
-    d_dense_qp_dim_set_all(dim_var, dim_eq, dim_var, dim_ineq, 0, 0, qp_dim_.get());
+    d_dense_qp_dim_set_all(dim_var, dim_eq, dim_var, dim_ineq, 0, qp_dim_.get());
 
     int qp_size = d_dense_qp_memsize(qp_dim_.get());
     qp_mem_ = std::make_unique<uint8_t[]>(qp_size);
@@ -52,7 +43,7 @@ Eigen::VectorXd QpSolverHpipm::solve(int dim_var,
     int ipm_arg_size = d_dense_qp_ipm_arg_memsize(qp_dim_.get());
     ipm_arg_mem_ = std::make_unique<uint8_t[]>(ipm_arg_size);
     d_dense_qp_ipm_arg_create(qp_dim_.get(), ipm_arg_.get(), ipm_arg_mem_.get());
-    enum hpipm_mode mode = SPEED; // SPEED_ABS, SPEED, BALANCE, ROBUST
+    enum hpipm_mode mode = SPEED;  // SPEED_ABS, SPEED, BALANCE, ROBUST
     d_dense_qp_ipm_arg_set_default(mode, ipm_arg_.get());
 
     // Apply custom parameters from struct
@@ -70,7 +61,7 @@ Eigen::VectorXd QpSolverHpipm::solve(int dim_var,
     ipm_ws_mem_ = std::make_unique<uint8_t[]>(ipm_ws_size);
     d_dense_qp_ipm_ws_create(qp_dim_.get(), ipm_arg_.get(), ipm_ws_.get(), ipm_ws_mem_.get());
 
-    opt_x_mem_ = std::make_unique<double[]>(dim_var); // Automatic memory management for the array
+    opt_x_mem_ = std::make_unique<double[]>(dim_var);  // Automatic memory management for the array
   }
 
   // Set QP coefficients
@@ -86,7 +77,8 @@ Eigen::VectorXd QpSolverHpipm::solve(int dim_var,
     std::vector<int> idxb(dim_var);
     std::iota(idxb.begin(), idxb.end(), 0);
     d_dense_qp_set_idxb(idxb.data(), qp_.get());
-    d_dense_qp_set_lb(const_cast<double *>(x_min.cwiseMax(-1 * bound_limit_).eval().data()), qp_.get());
+    d_dense_qp_set_lb(
+      const_cast<double *>(x_min.cwiseMax(-1 * bound_limit_).eval().data()), qp_.get());
     d_dense_qp_set_ub(const_cast<double *>(x_max.cwiseMin(bound_limit_).eval().data()), qp_.get());
   }
 
@@ -97,12 +89,10 @@ Eigen::VectorXd QpSolverHpipm::solve(int dim_var,
 
     int status;
     d_dense_qp_ipm_get_status(ipm_ws_.get(), &status);
-    if(status == SUCCESS || status == MAX_ITER) // enum hpipm_status
+    if (status == SUCCESS || status == MAX_ITER)  // enum hpipm_status
     {
       solve_failed_ = false;
-    }
-    else
-    {
+    } else {
       solve_failed_ = true;
       QSC_WARN_STREAM("[QpSolverHpipm::solve] Failed to solve: " << status);
     }
@@ -110,12 +100,8 @@ Eigen::VectorXd QpSolverHpipm::solve(int dim_var,
 
   return Eigen::Map<Eigen::VectorXd>(opt_x_mem_.get(), dim_var);
 }
-
 namespace QpSolverCollection
 {
-std::shared_ptr<QpSolver> allocateQpSolverHpipm()
-{
-  return std::make_shared<QpSolverHpipm>();
-}
-} // namespace QpSolverCollection
+std::shared_ptr<QpSolver> allocateQpSolverHpipm() { return std::make_shared<QpSolverHpipm>(); }
+}  // namespace QpSolverCollection
 #endif
