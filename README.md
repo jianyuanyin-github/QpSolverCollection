@@ -86,6 +86,7 @@ Add `-DENABLE_NASOQ=ON` to the catkin build command (i.e., `<qp-solver-flags>`).
 
 #### HPIPM
 Install master branch of [blasfeo](https://github.com/giaf/blasfeo) and [hpipm](https://github.com/giaf/hpipm).  
+For hpipm installation, it's recommended to checkout to commit [00c2a084e059e2e1b79877f668e282d0c4282110](https://github.com/giaf/hpipm/commit/00c2a084e059e2e1b79877f668e282d0c4282110) as documented.  
 Add `/opt/blasfeo/lib` and `/opt/hpipm/lib` to the environment variable `LD_LIBRARY_PATH`.  
 Add `-DENABLE_HPIPM=ON` to the catkin build command (i.e., `<qp-solver-flags>`).
 
@@ -157,19 +158,21 @@ If you encounter `Could NOT find nasoq (missing: nasoq_LIBRARY nasoq_EIGEN_INCLU
 
 #### HPIPM CMake configuration missing
 If you encounter `Could NOT find hpipm (missing: hpipm_LIBRARY hpipm_INCLUDE_DIR)`:
-1. The official HPIPM repository doesn't provide `make install` by default
+1. HPIPM does provide `make install`, but installs to local directories (not `/usr/local` by default)
 2. You need to modify the paths in `cmake/Findhpipm.cmake`:
    - Update `hpipm_INCLUDE_DIR` paths to point to your `hpipm/include` directory
    - Update `hpipm_LIBRARY` paths to point to your `hpipm/lib` directory
 3. Alternatively, disable HPIPM if you don't need it: `-DENABLE_HPIPM=OFF`
+4. Recommended: build HPIPM statically to avoid runtime loader issues: `-make static_library`
 
 #### BLASFEO CMake configuration missing（HPIPM Dependency）  
 If you encounter `Could NOT find blasfeo (missing: blasfeo_LIBRARY blasfeo_INCLUDE_DIR)`:
-1. The official BLASFEO repository doesn't provide `make install` by default
+1. BLASFEO does provide `make install`, but installs to local directories (not `/usr/local` by default)
 2. You need to modify the paths in `cmake/Findblasfeo.cmake`:
    - Update `blasfeo_INCLUDE_DIR` paths to point to your `blasfeo/include` directory
    - Update `blasfeo_LIBRARY` paths to point to your `blasfeo/lib` directory
 3. Alternatively, disable BLASFEO-dependent solvers if you don't need them: `-DENABLE_HPIPM=OFF`
+4. Recommended: build HPIPM statically to avoid runtime loader issues: `make static_library`
 
 Example build command with all fixes:
 ```bash

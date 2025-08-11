@@ -3,7 +3,7 @@ find_path(hpipm_INCLUDE_DIR
     NAMES hpipm_d_ocp_qp.h
     PATHS 
         ~/ocp_solver/hpipm/include
-        /usr/local/include
+        /opt/hpipm/include/
     DOC "hpipm include directory"
 )
 
@@ -11,7 +11,7 @@ find_library(hpipm_LIBRARY
     NAMES hpipm
     PATHS 
         ~/ocp_solver/hpipm/lib
-        /usr/local/lib
+        /opt/hpipm/lib
     DOC "hpipm library"
 )
 

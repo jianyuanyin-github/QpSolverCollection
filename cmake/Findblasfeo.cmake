@@ -3,7 +3,7 @@ find_path(blasfeo_INCLUDE_DIR
     NAMES blasfeo_common.h
     PATHS 
         ~/ocp_solver/blasfeo/include
-        /usr/local/include
+        /opt/blasfeo/include
     DOC "blasfeo include directory"
 )
 
@@ -11,7 +11,7 @@ find_library(blasfeo_LIBRARY
     NAMES blasfeo
     PATHS 
         ~/ocp_solver/blasfeo/lib
-        /usr/local/lib
+        /opt/blasfeo/lib
     DOC "blasfeo library"
 )
 
