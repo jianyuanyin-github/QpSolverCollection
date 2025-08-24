@@ -12,6 +12,29 @@ using namespace QpSolverCollection;
 QpSolverNasoq::QpSolverNasoq()
 {
   type_ = QpSolverType::NASOQ;
+  
+  // Initialize NASOQ parameters
+  declare_and_update_parameters();
+}
+
+void QpSolverNasoq::declare_and_update_parameters()
+{
+  nasoq_params_.max_iter = param_manager_
+    ->declare_and_get_value("MPC.Solver_NASOQ.max_iter", 10, tam::pmg::ParameterType::INTEGER, "")
+    .as_int();
+  nasoq_params_.eps_abs = param_manager_
+    ->declare_and_get_value("MPC.Solver_NASOQ.eps_abs", 1e-5, tam::pmg::ParameterType::DOUBLE, "")
+    .as_double();
+  nasoq_params_.eps_rel = param_manager_
+    ->declare_and_get_value("MPC.Solver_NASOQ.eps_rel", 1e-5, tam::pmg::ParameterType::DOUBLE, "")
+    .as_double();
+  nasoq_params_.regularization = param_manager_
+    ->declare_and_get_value("MPC.Solver_NASOQ.regularization", 1e-9, tam::pmg::ParameterType::DOUBLE, "")
+    .as_double();
+  nasoq_params_.nasoq_variant = param_manager_
+    ->declare_and_get_value("MPC.Solver_NASOQ.nasoq_variant", std::string("auto"), tam::pmg::ParameterType::STRING, "")
+    .as_string();
+  previous_param_state_hash_ = param_manager_->get_state_hash();
 }
 
 Eigen::VectorXd QpSolverNasoq::solve(int dim_var,
@@ -26,6 +49,11 @@ Eigen::VectorXd QpSolverNasoq::solve(int dim_var,
                                      const Eigen::Ref<const Eigen::VectorXd> & x_min,
                                      const Eigen::Ref<const Eigen::VectorXd> & x_max)
 {
+  // Check if parameters have changed and update if necessary
+  if (param_manager_->get_state_hash() != previous_param_state_hash_) {
+    declare_and_update_parameters();
+  }
+  
   int dim_ineq_with_bound = dim_ineq + 2 * dim_var;
   Eigen::MatrixXd C_with_bound(dim_ineq_with_bound, dim_var);
   Eigen::VectorXd d_with_bound(dim_ineq_with_bound);

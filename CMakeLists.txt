@@ -103,6 +103,7 @@ endif()
 if(USE_ROS2)
   find_package(ament_cmake REQUIRED)
   find_package(rclcpp REQUIRED)
+  find_package(param_management_cpp REQUIRED)
 endif()
 
 set(QP_SOLVER_OPTIONS_HEADER_FILE "${PROJECT_SOURCE_DIR}/include/qp_solver_collection/QpSolverOptions.h")
@@ -177,6 +178,7 @@ if(USE_ROS2)
   ament_export_dependencies(
     rclcpp
     Eigen3
+    param_management_cpp
   )
   ament_export_targets(${PROJECT_NAME})
   ament_package()

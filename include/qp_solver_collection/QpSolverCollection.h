@@ -2,81 +2,73 @@
 
 #pragma once
 
+#include <qp_solver_collection/QpSolverOptions.h>
+
+#include <Eigen/SparseCore>
 #include <chrono>
 #include <fstream>
 #include <memory>
 
-#include <Eigen/SparseCore>
-
-#include <qp_solver_collection/QpSolverOptions.h>
-
 #ifdef QP_SOLVER_COLLECTION_STANDALONE
-#  include <iostream>
-#  define QSC_ERROR_STREAM(x) std::cerr << x << "\n"
-#  define QSC_WARN_STREAM(x) std::cerr << x << "\n"
-#  define QSC_INFO_STREAM(x) std::cout << x << "\n"
+#include <iostream>
+#define QSC_ERROR_STREAM(x) std::cerr << x << "\n"
+#define QSC_WARN_STREAM(x) std::cerr << x << "\n"
+#define QSC_INFO_STREAM(x) std::cout << x << "\n"
 #else
-#  include <rclcpp/rclcpp.hpp>
-#  define QSC_ERROR_STREAM(msg) RCLCPP_ERROR_STREAM(rclcpp::get_logger("QpSolverCollection"), msg)
-#  define QSC_WARN_STREAM(msg) RCLCPP_WARN_STREAM(rclcpp::get_logger("QpSolverCollection"), msg)
-#  define QSC_INFO_STREAM(msg) RCLCPP_INFO_STREAM(rclcpp::get_logger("QpSolverCollection"), msg)
+#include <rclcpp/rclcpp.hpp>
+#include "param_management_cpp/param_value_manager.hpp"
+#define QSC_ERROR_STREAM(msg) RCLCPP_ERROR_STREAM(rclcpp::get_logger("QpSolverCollection"), msg)
+#define QSC_WARN_STREAM(msg) RCLCPP_WARN_STREAM(rclcpp::get_logger("QpSolverCollection"), msg)
+#define QSC_INFO_STREAM(msg) RCLCPP_INFO_STREAM(rclcpp::get_logger("QpSolverCollection"), msg)
 #endif
-
 namespace Eigen
 {
 class QLDDirect;
 class QuadProgDense;
 class LSSOL_QP;
-} // namespace Eigen
-
+}  // namespace Eigen
 namespace jrl
 {
 namespace qp
 {
 class GoldfarbIdnaniSolver;
-} // namespace qp
-} // namespace jrl
-
+}  // namespace qp
+}  // namespace jrl
 namespace qpOASES
 {
 class SQProblem;
-} // namespace qpOASES
-
+}  // namespace qpOASES
 namespace OsqpEigen
 {
 class Solver;
-} // namespace OsqpEigen
+}  // namespace OsqpEigen
 
 struct d_dense_qp_dim;
 struct d_dense_qp;
 struct d_dense_qp_sol;
 struct d_dense_qp_ipm_arg;
 struct d_dense_qp_ipm_ws;
-
 namespace proxsuite
 {
 namespace proxqp
 {
 namespace dense
 {
-template<typename T>
+template <typename T>
 class QP;
 }
-} // namespace proxqp
-} // namespace proxsuite
-
+}  // namespace proxqp
+}  // namespace proxsuite
 namespace qpmad
 {
-template<typename t_Scalar, int... t_Parameters>
+template <typename t_Scalar, int... t_Parameters>
 class SolverTemplate;
 using Solver = SolverTemplate<double, Eigen::Dynamic, 1, Eigen::Dynamic>;
-} // namespace qpmad
-
+}  // namespace qpmad
 namespace QpSolverCollection
 {
 /** \brief QP solver type. */
-enum class QpSolverType
-{
+enum class QpSolverType {
   Any = -2,
   Uninitialized = -1,
   QLD = 0,
@@ -93,16 +85,13 @@ enum class QpSolverType
 
 /*! \brief Convert std::string to QpSolverType. */
 QpSolverType strToQpSolverType(const std::string & qp_solver_type);
-} // namespace QpSolverCollection
-
+}  // namespace QpSolverCollection
 namespace std
 {
 using QpSolverType = QpSolverCollection::QpSolverType;
-
 inline string to_string(QpSolverType qp_solver_type)
 {
-  switch(qp_solver_type)
-  {
+  switch (qp_solver_type) {
     case QpSolverType::QLD:
       return "QpSolverType::QLD";
     case QpSolverType::QuadProg:
@@ -124,13 +113,13 @@ inline string to_string(QpSolverType qp_solver_type)
     case QpSolverType::QPMAD:
       return "QpSolverType::QPMAD";
     default:
-      QSC_ERROR_STREAM("[QpSolverType] Unsupported value: " << std::to_string(static_cast<int>(qp_solver_type)));
+      QSC_ERROR_STREAM(
+        "[QpSolverType] Unsupported value: " << std::to_string(static_cast<int>(qp_solver_type)));
   }
 
   return "";
 }
-} // namespace std
-
+}  // namespace std
 namespace QpSolverCollection
 {
 /** \brief Class of QP coefficient. */
@@ -139,7 +128,6 @@ class QpCoeff
 public:
   /** \brief Constructor. */
   QpCoeff() {}
-
   /** \brief Setup the coefficients with filling zero.
       \param dim_var dimension of decision variable
       \param dim_eq dimension of equality constraint
@@ -163,43 +151,49 @@ public:
   //! Dimension of inequality constraint
   int dim_ineq_ = 0;
 
-  //! Objective matrix (corresponding to \f$\boldsymbol{Q}\f$ in @ref QpSolver#solve "QpSolver::solve".)
+  //! Objective matrix (corresponding to \f$\boldsymbol{Q}\f$ in @ref QpSolver#solve
+  //! "QpSolver::solve".)
   Eigen::MatrixXd obj_mat_;
 
-  //! Objective vector (corresponding to \f$\boldsymbol{c}\f$ in @ref QpSolver#solve "QpSolver::solve".)
+  //! Objective vector (corresponding to \f$\boldsymbol{c}\f$ in @ref QpSolver#solve
+  //! "QpSolver::solve".)
   Eigen::VectorXd obj_vec_;
 
-  //! Equality constraint matrix (corresponding to \f$\boldsymbol{A}\f$ in @ref QpSolver#solve "QpSolver::solve".)
+  //! Equality constraint matrix (corresponding to \f$\boldsymbol{A}\f$ in @ref QpSolver#solve
+  //! "QpSolver::solve".)
   Eigen::MatrixXd eq_mat_;
 
-  //! Equality constraint vector (corresponding to \f$\boldsymbol{b}\f$ in @ref QpSolver#solve "QpSolver::solve".)
+  //! Equality constraint vector (corresponding to \f$\boldsymbol{b}\f$ in @ref QpSolver#solve
+  //! "QpSolver::solve".)
   Eigen::VectorXd eq_vec_;
 
-  //! Inequality constraint matrix (corresponding to \f$\boldsymbol{C}\f$ in @ref QpSolver#solve "QpSolver::solve".)
+  //! Inequality constraint matrix (corresponding to \f$\boldsymbol{C}\f$ in @ref QpSolver#solve
+  //! "QpSolver::solve".)
   Eigen::MatrixXd ineq_mat_;
 
-  //! Inequality constraint vector (corresponding to \f$\boldsymbol{d}\f$ in @ref QpSolver#solve "QpSolver::solve".)
+  //! Inequality constraint vector (corresponding to \f$\boldsymbol{d}\f$ in @ref QpSolver#solve
+  //! "QpSolver::solve".)
   Eigen::VectorXd ineq_vec_;
 
-  //! Lower bound (corresponding to \f$\boldsymbol{x}_{min}\f$ in @ref QpSolver#solve "QpSolver::solve".)
+  //! Lower bound (corresponding to \f$\boldsymbol{x}_{min}\f$ in @ref QpSolver#solve
+  //! "QpSolver::solve".)
   Eigen::VectorXd x_min_;
 
-  //! Upper bound (corresponding to \f$\boldsymbol{x}_{max}\f$ in @ref QpSolver#solve "QpSolver::solve".)
+  //! Upper bound (corresponding to \f$\boldsymbol{x}_{max}\f$ in @ref QpSolver#solve
+  //! "QpSolver::solve".)
   Eigen::VectorXd x_max_;
 };
-
 /** \brief Virtual class of QP solver. */
 class QpSolver
 {
 public:
-  using clock = typename std::conditional<std::chrono::high_resolution_clock::is_steady,
-                                          std::chrono::high_resolution_clock,
-                                          std::chrono::steady_clock>::type;
+  using clock = typename std::conditional<
+    std::chrono::high_resolution_clock::is_steady, std::chrono::high_resolution_clock,
+    std::chrono::steady_clock>::type;
 
 public:
   /** \brief Constructor. */
   QpSolver() {}
-
   /** \brief Print information. */
   void printInfo(bool verbose = false, const std::string & header = "") const;
 
@@ -218,45 +212,80 @@ public:
 
       QP is formulated as follows:
       \f{align*}{
-      & min_{\boldsymbol{x}} \ \frac{1}{2}{\boldsymbol{x}^T \boldsymbol{Q} \boldsymbol{x}} + {\boldsymbol{c}^T
+      & min_{\boldsymbol{x}} \ \frac{1}{2}{\boldsymbol{x}^T \boldsymbol{Q} \boldsymbol{x}} +
+     {\boldsymbol{c}^T
      \boldsymbol{x}} \\
       & s.t. \ \ \boldsymbol{A} \boldsymbol{x} = \boldsymbol{b} \nonumber \\
       & \phantom{s.t.} \ \ \boldsymbol{C} \boldsymbol{x} \leq \boldsymbol{d} \nonumber \\
-      & \phantom{s.t.} \ \ \boldsymbol{x}_{min} \leq \boldsymbol{x} \leq \boldsymbol{x}_{max} \nonumber
-      \f}
+      & \phantom{s.t.} \ \ \boldsymbol{x}_{min} \leq \boldsymbol{x} \leq \boldsymbol{x}_{max}
+     \nonumber \f}
 
-      \todo Support both-sided inequality constraints (i.e., \f$\boldsymbol{d}_{lower} \leq \boldsymbol{C}
-     \boldsymbol{x} \leq \boldsymbol{d}_{upper}\f$). QLD, QuadProg, and NASOQ support only one-sided constraints, while
-     LSSOL, JRLQP, QPOASES, OSQP, HPIPM, PROXQP, and QPMAD support both-sided constraints.
+      \todo Support both-sided inequality constraints (i.e., \f$\boldsymbol{d}_{lower} \leq
+     \boldsymbol{C} \boldsymbol{x} \leq \boldsymbol{d}_{upper}\f$). QLD, QuadProg, and NASOQ support
+     only one-sided constraints, while LSSOL, JRLQP, QPOASES, OSQP, HPIPM, PROXQP, and QPMAD support
+     both-sided constraints.
   */
-  virtual Eigen::VectorXd solve(int dim_var,
-                                int dim_eq,
-                                int dim_ineq,
-                                Eigen::Ref<Eigen::MatrixXd> Q,
-                                const Eigen::Ref<const Eigen::VectorXd> & c,
-                                const Eigen::Ref<const Eigen::MatrixXd> & A,
-                                const Eigen::Ref<const Eigen::VectorXd> & b,
-                                const Eigen::Ref<const Eigen::MatrixXd> & C,
-                                const Eigen::Ref<const Eigen::VectorXd> & d,
-                                const Eigen::Ref<const Eigen::VectorXd> & x_min,
-                                const Eigen::Ref<const Eigen::VectorXd> & x_max) = 0;
+  virtual Eigen::VectorXd solve(
+    int dim_var, int dim_eq, int dim_ineq, Eigen::Ref<Eigen::MatrixXd> Q,
+    const Eigen::Ref<const Eigen::VectorXd> & c, const Eigen::Ref<const Eigen::MatrixXd> & A,
+    const Eigen::Ref<const Eigen::VectorXd> & b, const Eigen::Ref<const Eigen::MatrixXd> & C,
+    const Eigen::Ref<const Eigen::VectorXd> & d, const Eigen::Ref<const Eigen::VectorXd> & x_min,
+    const Eigen::Ref<const Eigen::VectorXd> & x_max) = 0;
 
   /** \brief Solve QP.
       \param qp_coeff QP coefficient
   */
   virtual Eigen::VectorXd solve(QpCoeff & qp_coeff);
-
+  // ===== INCREMENTAL UPDATE INTERFACE =====
+  /** \brief Check if solver supports incremental updates. */
+  virtual bool supportsIncrementalUpdate() const { return false; }
+  /** \brief Initialize problem for incremental updates.
+      \param qp_coeff Initial QP coefficient
+      \return true if initialization successful
+  */
+  virtual bool initializeIncremental(QpCoeff & qp_coeff) { return false; }
+  /** \brief Update objective matrix incrementally.
+      \param Q new objective matrix
+      \return true if update successful
+  */
+  virtual bool updateObjectiveMatrix(Eigen::Ref<Eigen::MatrixXd> Q) { return false; }
+  /** \brief Update objective vector incrementally.
+      \param c new objective vector
+      \return true if update successful
+  */
+  virtual bool updateObjectiveVector(const Eigen::Ref<const Eigen::VectorXd> & c) { return false; }
+  /** \brief Update inequality constraint matrix incrementally.
+      \param C new inequality constraint matrix
+      \return true if update successful
+  */
+  virtual bool updateInequalityMatrix(const Eigen::Ref<const Eigen::MatrixXd> & C) { return false; }
+  /** \brief Update inequality constraint vector incrementally.
+      \param d new inequality constraint vector
+      \return true if update successful
+  */
+  virtual bool updateInequalityVector(const Eigen::Ref<const Eigen::VectorXd> & d) { return false; }
+  /** \brief Update variable bounds incrementally.
+      \param x_min new lower bounds
+      \param x_max new upper bounds
+      \return true if update successful
+  */
+  /** \brief Solve QP incrementally (after updates).
+      \return solution vector
+  */
+  virtual Eigen::VectorXd solveIncremental()
+  {
+    // Fallback: if not implemented, return empty vector to indicate failure
+    return Eigen::VectorXd::Zero(0);
+  }
   /** \brief Get QP solver type. */
-  inline QpSolverType type() const
-  {
-    return type_;
-  }
-
+  inline QpSolverType type() const { return type_; }
   /** \brief Get whether it failed to solve the QP. */
-  inline bool solveFailed() const
-  {
-    return solve_failed_;
-  }
+  inline bool solveFailed() const { return solve_failed_; }
+  
+  /** \brief Get parameter manager interface.
+      \return parameter manager shared pointer (returns nullptr for solvers that don't support parameters)
+  */
+  virtual std::shared_ptr<tam::pmg::ParamValueManager> getParamHandler() const { return nullptr; }
 
 protected:
   /** \brief QP solver type. */
@@ -265,7 +294,6 @@ protected:
   /** \brief Whether it failed to solve the QP. */
   bool solve_failed_ = false;
 };
-
 #if ENABLE_QLD
 /** \brief QP solver QLD. */
 class QpSolverQld : public QpSolver
@@ -275,17 +303,12 @@ public:
   QpSolverQld();
 
   /** \brief Solve QP. */
-  virtual Eigen::VectorXd solve(int dim_var,
-                                int dim_eq,
-                                int dim_ineq,
-                                Eigen::Ref<Eigen::MatrixXd> Q,
-                                const Eigen::Ref<const Eigen::VectorXd> & c,
-                                const Eigen::Ref<const Eigen::MatrixXd> & A,
-                                const Eigen::Ref<const Eigen::VectorXd> & b,
-                                const Eigen::Ref<const Eigen::MatrixXd> & C,
-                                const Eigen::Ref<const Eigen::VectorXd> & d,
-                                const Eigen::Ref<const Eigen::VectorXd> & x_min,
-                                const Eigen::Ref<const Eigen::VectorXd> & x_max) override;
+  virtual Eigen::VectorXd solve(
+    int dim_var, int dim_eq, int dim_ineq, Eigen::Ref<Eigen::MatrixXd> Q,
+    const Eigen::Ref<const Eigen::VectorXd> & c, const Eigen::Ref<const Eigen::MatrixXd> & A,
+    const Eigen::Ref<const Eigen::VectorXd> & b, const Eigen::Ref<const Eigen::MatrixXd> & C,
+    const Eigen::Ref<const Eigen::VectorXd> & d, const Eigen::Ref<const Eigen::VectorXd> & x_min,
+    const Eigen::Ref<const Eigen::VectorXd> & x_max) override;
 
 protected:
   std::unique_ptr<Eigen::QLDDirect> qld_;
@@ -301,17 +324,12 @@ public:
   QpSolverQuadprog();
 
   /** \brief Solve QP. */
-  virtual Eigen::VectorXd solve(int dim_var,
-                                int dim_eq,
-                                int dim_ineq,
-                                Eigen::Ref<Eigen::MatrixXd> Q,
-                                const Eigen::Ref<const Eigen::VectorXd> & c,
-                                const Eigen::Ref<const Eigen::MatrixXd> & A,
-                                const Eigen::Ref<const Eigen::VectorXd> & b,
-                                const Eigen::Ref<const Eigen::MatrixXd> & C,
-                                const Eigen::Ref<const Eigen::VectorXd> & d,
-                                const Eigen::Ref<const Eigen::VectorXd> & x_min,
-                                const Eigen::Ref<const Eigen::VectorXd> & x_max) override;
+  virtual Eigen::VectorXd solve(
+    int dim_var, int dim_eq, int dim_ineq, Eigen::Ref<Eigen::MatrixXd> Q,
+    const Eigen::Ref<const Eigen::VectorXd> & c, const Eigen::Ref<const Eigen::MatrixXd> & A,
+    const Eigen::Ref<const Eigen::VectorXd> & b, const Eigen::Ref<const Eigen::MatrixXd> & C,
+    const Eigen::Ref<const Eigen::VectorXd> & d, const Eigen::Ref<const Eigen::VectorXd> & x_min,
+    const Eigen::Ref<const Eigen::VectorXd> & x_max) override;
 
 protected:
   std::unique_ptr<Eigen::QuadProgDense> quadprog_;
@@ -327,17 +345,12 @@ public:
   QpSolverLssol();
 
   /** \brief Solve QP. */
-  virtual Eigen::VectorXd solve(int dim_var,
-                                int dim_eq,
-                                int dim_ineq,
-                                Eigen::Ref<Eigen::MatrixXd> Q,
-                                const Eigen::Ref<const Eigen::VectorXd> & c,
-                                const Eigen::Ref<const Eigen::MatrixXd> & A,
-                                const Eigen::Ref<const Eigen::VectorXd> & b,
-                                const Eigen::Ref<const Eigen::MatrixXd> & C,
-                                const Eigen::Ref<const Eigen::VectorXd> & d,
-                                const Eigen::Ref<const Eigen::VectorXd> & x_min,
-                                const Eigen::Ref<const Eigen::VectorXd> & x_max) override;
+  virtual Eigen::VectorXd solve(
+    int dim_var, int dim_eq, int dim_ineq, Eigen::Ref<Eigen::MatrixXd> Q,
+    const Eigen::Ref<const Eigen::VectorXd> & c, const Eigen::Ref<const Eigen::MatrixXd> & A,
+    const Eigen::Ref<const Eigen::VectorXd> & b, const Eigen::Ref<const Eigen::MatrixXd> & C,
+    const Eigen::Ref<const Eigen::VectorXd> & d, const Eigen::Ref<const Eigen::VectorXd> & x_min,
+    const Eigen::Ref<const Eigen::VectorXd> & x_max) override;
 
 protected:
   std::unique_ptr<Eigen::LSSOL_QP> lssol_;
@@ -353,17 +366,12 @@ public:
   QpSolverJrlqp();
 
   /** \brief Solve QP. */
-  virtual Eigen::VectorXd solve(int dim_var,
-                                int dim_eq,
-                                int dim_ineq,
-                                Eigen::Ref<Eigen::MatrixXd> Q,
-                                const Eigen::Ref<const Eigen::VectorXd> & c,
-                                const Eigen::Ref<const Eigen::MatrixXd> & A,
-                                const Eigen::Ref<const Eigen::VectorXd> & b,
-                                const Eigen::Ref<const Eigen::MatrixXd> & C,
-                                const Eigen::Ref<const Eigen::VectorXd> & d,
-                                const Eigen::Ref<const Eigen::VectorXd> & x_min,
-                                const Eigen::Ref<const Eigen::VectorXd> & x_max) override;
+  virtual Eigen::VectorXd solve(
+    int dim_var, int dim_eq, int dim_ineq, Eigen::Ref<Eigen::MatrixXd> Q,
+    const Eigen::Ref<const Eigen::VectorXd> & c, const Eigen::Ref<const Eigen::MatrixXd> & A,
+    const Eigen::Ref<const Eigen::VectorXd> & b, const Eigen::Ref<const Eigen::MatrixXd> & C,
+    const Eigen::Ref<const Eigen::VectorXd> & d, const Eigen::Ref<const Eigen::VectorXd> & x_min,
+    const Eigen::Ref<const Eigen::VectorXd> & x_max) override;
 
 protected:
   std::unique_ptr<jrl::qp::GoldfarbIdnaniSolver> jrlqp_;
@@ -381,17 +389,18 @@ public:
   QpSolverQpoases();
 
   /** \brief Solve QP. */
-  virtual Eigen::VectorXd solve(int dim_var,
-                                int dim_eq,
-                                int dim_ineq,
-                                Eigen::Ref<Eigen::MatrixXd> Q,
-                                const Eigen::Ref<const Eigen::VectorXd> & c,
-                                const Eigen::Ref<const Eigen::MatrixXd> & A,
-                                const Eigen::Ref<const Eigen::VectorXd> & b,
-                                const Eigen::Ref<const Eigen::MatrixXd> & C,
-                                const Eigen::Ref<const Eigen::VectorXd> & d,
-                                const Eigen::Ref<const Eigen::VectorXd> & x_min,
-                                const Eigen::Ref<const Eigen::VectorXd> & x_max) override;
+  virtual Eigen::VectorXd solve(
+    int dim_var, int dim_eq, int dim_ineq, Eigen::Ref<Eigen::MatrixXd> Q,
+    const Eigen::Ref<const Eigen::VectorXd> & c, const Eigen::Ref<const Eigen::MatrixXd> & A,
+    const Eigen::Ref<const Eigen::VectorXd> & b, const Eigen::Ref<const Eigen::MatrixXd> & C,
+    const Eigen::Ref<const Eigen::VectorXd> & d, const Eigen::Ref<const Eigen::VectorXd> & x_min,
+    const Eigen::Ref<const Eigen::VectorXd> & x_max) override;
+
+  /** \brief Get parameter manager interface. */
+  std::shared_ptr<tam::pmg::ParamValueManager> getParamHandler() const override { return param_manager_; }
+  
+  /** \brief Declare and update parameters from parameter manager. */
+  void declare_and_update_parameters();
 
 public:
   int n_wsr_ = 10000;
@@ -404,7 +413,6 @@ public:
 
 protected:
   std::unique_ptr<qpOASES::SQProblem> qpoases_;
-
   struct QpoasesParameters
   {
     int max_iter = 10;
@@ -415,8 +423,10 @@ protected:
     bool use_warm_start = true;
     int num_refinement_steps = 1;
   };
-
   QpoasesParameters qpoases_params_;
+  
+  std::shared_ptr<tam::pmg::ParamValueManager> param_manager_ = std::make_shared<tam::pmg::ParamValueManager>();
+  std::size_t previous_param_state_hash_ = 0;
 };
 #endif
 
@@ -431,29 +441,12 @@ public:
   QpSolverOsqp();
 
   /** \brief Solve QP. */
-  virtual Eigen::VectorXd solve(int dim_var,
-                                int dim_eq,
-                                int dim_ineq,
-                                Eigen::Ref<Eigen::MatrixXd> Q,
-                                const Eigen::Ref<const Eigen::VectorXd> & c,
-                                const Eigen::Ref<const Eigen::MatrixXd> & A,
-                                const Eigen::Ref<const Eigen::VectorXd> & b,
-                                const Eigen::Ref<const Eigen::MatrixXd> & C,
-                                const Eigen::Ref<const Eigen::VectorXd> & d,
-                                const Eigen::Ref<const Eigen::VectorXd> & x_min,
-                                const Eigen::Ref<const Eigen::VectorXd> & x_max) override;
-
-  /** \brief Set OSQP solver parameters. */
-  // void setOsqpSettings(int max_iter = 100,
-  //                      double abs_tolerance = 1e-3,
-  //                      double rel_tolerance = 1e-3,
-  //                      double alpha = 1.6,
-  //                      bool verbose = false,
-  //                      int scaling = 10,
-  //                      int adaptive_rho_interval = 0,
-  //                      bool polish = false,
-  //                      double time_limit = 0.0,
-  //                      int check_termination = 0);
+  virtual Eigen::VectorXd solve(
+    int dim_var, int dim_eq, int dim_ineq, Eigen::Ref<Eigen::MatrixXd> Q,
+    const Eigen::Ref<const Eigen::VectorXd> & c, const Eigen::Ref<const Eigen::MatrixXd> & A,
+    const Eigen::Ref<const Eigen::VectorXd> & b, const Eigen::Ref<const Eigen::MatrixXd> & C,
+    const Eigen::Ref<const Eigen::VectorXd> & d, const Eigen::Ref<const Eigen::VectorXd> & x_min,
+    const Eigen::Ref<const Eigen::VectorXd> & x_max) override;
 
   /** \brief Get solver status. */
   int getSolverStatus() const;
@@ -466,6 +459,20 @@ public:
 
   /** \brief Get dual residual. */
   double getDualResidual() const;
+  // ===== INCREMENTAL UPDATE IMPLEMENTATION =====
+  bool supportsIncrementalUpdate() const override { return true; }
+  bool initializeIncremental(QpCoeff & qp_coeff) override;
+  bool updateObjectiveMatrix(Eigen::Ref<Eigen::MatrixXd> Q) override;
+  bool updateObjectiveVector(const Eigen::Ref<const Eigen::VectorXd> & c) override;
+  bool updateInequalityMatrix(const Eigen::Ref<const Eigen::MatrixXd> & C) override;
+  bool updateInequalityVector(const Eigen::Ref<const Eigen::VectorXd> & d) override;
+  Eigen::VectorXd solveIncremental() override;
+  
+  /** \brief Get parameter manager interface. */
+  std::shared_ptr<tam::pmg::ParamValueManager> getParamHandler() const override { return param_manager_; }
+  
+  /** \brief Declare and update parameters from parameter manager. */
+  void declare_and_update_parameters();
 
 public:
   /** \brief Whether to initialize each time instead of doing a warm start.
@@ -483,14 +490,17 @@ protected:
   Eigen::VectorXd bd_with_bound_min_;
   Eigen::VectorXd bd_with_bound_max_;
 
-  double sparse_duration_ = 0; // [ms]
+  double sparse_duration_ = 0;  // [ms]
+  
+  std::shared_ptr<tam::pmg::ParamValueManager> param_manager_ = std::make_shared<tam::pmg::ParamValueManager>();
+  std::size_t previous_param_state_hash_ = 0;
 
   // OSQP solver parameters
   struct OsqpParameters
   {
     int max_iter = 60;
-    double abs_tolerance = 1e-6;
-    double rel_tolerance = 1e-6;
+    double abs_tolerance = 1e-3;
+    double rel_tolerance = 1e-3;
     double alpha = 1.6;
     bool verbose = false;
     int scaling = 10;
@@ -499,7 +509,6 @@ protected:
     double time_limit = 0.0;
     int check_termination = 0;
   } osqp_params_;
-
   // Solver status tracking
   // int osqp_iterations_ = 0;
   // double osqp_primal_res_ = 0.0;
@@ -518,34 +527,37 @@ public:
   QpSolverNasoq();
 
   /** \brief Solve QP. */
-  virtual Eigen::VectorXd solve(int dim_var,
-                                int dim_eq,
-                                int dim_ineq,
-                                Eigen::Ref<Eigen::MatrixXd> Q,
-                                const Eigen::Ref<const Eigen::VectorXd> & c,
-                                const Eigen::Ref<const Eigen::MatrixXd> & A,
-                                const Eigen::Ref<const Eigen::VectorXd> & b,
-                                const Eigen::Ref<const Eigen::MatrixXd> & C,
-                                const Eigen::Ref<const Eigen::VectorXd> & d,
-                                const Eigen::Ref<const Eigen::VectorXd> & x_min,
-                                const Eigen::Ref<const Eigen::VectorXd> & x_max) override;
+  virtual Eigen::VectorXd solve(
+    int dim_var, int dim_eq, int dim_ineq, Eigen::Ref<Eigen::MatrixXd> Q,
+    const Eigen::Ref<const Eigen::VectorXd> & c, const Eigen::Ref<const Eigen::MatrixXd> & A,
+    const Eigen::Ref<const Eigen::VectorXd> & b, const Eigen::Ref<const Eigen::MatrixXd> & C,
+    const Eigen::Ref<const Eigen::VectorXd> & d, const Eigen::Ref<const Eigen::VectorXd> & x_min,
+    const Eigen::Ref<const Eigen::VectorXd> & x_max) override;
+
+  /** \brief Get parameter manager interface. */
+  std::shared_ptr<tam::pmg::ParamValueManager> getParamHandler() const override { return param_manager_; }
+  
+  /** \brief Declare and update parameters from parameter manager. */
+  void declare_and_update_parameters();
 
 protected:
   Eigen::SparseMatrix<double, Eigen::ColMajor, int> Q_sparse_;
   Eigen::SparseMatrix<double, Eigen::ColMajor, int> A_sparse_;
   Eigen::SparseMatrix<double, Eigen::ColMajor, int> C_with_bound_sparse_;
 
-  double sparse_duration_ = 0; // [ms]
-
+  double sparse_duration_ = 0;  // [ms]
   struct NasoqParameters
   {
     int max_iter = 10;
     double eps_abs = 1e-5;
     double eps_rel = 1e-5;
     double regularization = 1e-9;
-    std::string nasoq_variant = "auto"; //"tune", "fixed", "auto"
+    std::string nasoq_variant = "auto";  //"tune", "fixed", "auto"
   };
   NasoqParameters nasoq_params_;
+  
+  std::shared_ptr<tam::pmg::ParamValueManager> param_manager_ = std::make_shared<tam::pmg::ParamValueManager>();
+  std::size_t previous_param_state_hash_ = 0;
 };
 #endif
 
@@ -558,23 +570,33 @@ public:
   QpSolverHpipm();
 
   /** \brief Solve QP. */
-  virtual Eigen::VectorXd solve(int dim_var,
-                                int dim_eq,
-                                int dim_ineq,
-                                Eigen::Ref<Eigen::MatrixXd> Q,
-                                const Eigen::Ref<const Eigen::VectorXd> & c,
-                                const Eigen::Ref<const Eigen::MatrixXd> & A,
-                                const Eigen::Ref<const Eigen::VectorXd> & b,
-                                const Eigen::Ref<const Eigen::MatrixXd> & C,
-                                const Eigen::Ref<const Eigen::VectorXd> & d,
-                                const Eigen::Ref<const Eigen::VectorXd> & x_min,
-                                const Eigen::Ref<const Eigen::VectorXd> & x_max) override;
+  virtual Eigen::VectorXd solve(
+    int dim_var, int dim_eq, int dim_ineq, Eigen::Ref<Eigen::MatrixXd> Q,
+    const Eigen::Ref<const Eigen::VectorXd> & c, const Eigen::Ref<const Eigen::MatrixXd> & A,
+    const Eigen::Ref<const Eigen::VectorXd> & b, const Eigen::Ref<const Eigen::MatrixXd> & C,
+    const Eigen::Ref<const Eigen::VectorXd> & d, const Eigen::Ref<const Eigen::VectorXd> & x_min,
+    const Eigen::Ref<const Eigen::VectorXd> & x_max) override;
+  // ===== INCREMENTAL UPDATE IMPLEMENTATION =====
+  bool supportsIncrementalUpdate() const override { return true; }
+  bool initializeIncremental(QpCoeff & qp_coeff) override;
+  bool updateObjectiveMatrix(Eigen::Ref<Eigen::MatrixXd> Q) override;
+  bool updateObjectiveVector(const Eigen::Ref<const Eigen::VectorXd> & c) override;
+  bool updateInequalityMatrix(const Eigen::Ref<const Eigen::MatrixXd> & C) override;
+  bool updateInequalityVector(const Eigen::Ref<const Eigen::VectorXd> & d) override;
+  Eigen::VectorXd solveIncremental() override;
+  
+  /** \brief Get parameter manager interface. */
+  std::shared_ptr<tam::pmg::ParamValueManager> getParamHandler() const override { return param_manager_; }
+  
+  /** \brief Declare and update parameters from parameter manager. */
+  void declare_and_update_parameters();
 
 public:
   /** \brief Maximum limits of inequality bounds.
 
-      \note Setting very large values for inequality bounds will result in NaN or incorrect solutions.
-     std::numeric_limits<double>::infinity(), std::numeric_limits<double>::max(), and even 1e20 have this problem.
+      \note Setting very large values for inequality bounds will result in NaN or incorrect
+     solutions. std::numeric_limits<double>::infinity(), std::numeric_limits<double>::max(), and
+     even 1e20 have this problem.
   */
   double bound_limit_ = 1e10;
 
@@ -592,21 +614,22 @@ protected:
   std::unique_ptr<uint8_t[]> ipm_ws_mem_ = nullptr;
 
   std::unique_ptr<double[]> opt_x_mem_ = nullptr;
-
   struct HpipmParameters
   {
-    int max_iter = 40; // Maximum number of iterations
-    double tol_stat = 1e-4;
-    double tol_eq = 1e-4;
-    double tol_ineq = 1e-4;
-    double tol_comp = 1e-4;
+    int max_iter = 10;  // Maximum number of iterations
+    double tol_stat = 1e-3;
+    double tol_eq = 1e-3;
+    double tol_ineq = 1e-3;
+    double tol_comp = 1e-3;
     int warm_start = 1;
     int pred_corr = 1;
     int cond_pred_corr = 1;
     int split_step = 0;
   };
-
   HpipmParameters hpipm_params_;
+  
+  std::shared_ptr<tam::pmg::ParamValueManager> param_manager_ = std::make_shared<tam::pmg::ParamValueManager>();
+  std::size_t previous_param_state_hash_ = 0;
 };
 #endif
 
@@ -619,32 +642,37 @@ public:
   QpSolverProxqp();
 
   /** \brief Solve QP. */
-  virtual Eigen::VectorXd solve(int dim_var,
-                                int dim_eq,
-                                int dim_ineq,
-                                Eigen::Ref<Eigen::MatrixXd> Q,
-                                const Eigen::Ref<const Eigen::VectorXd> & c,
-                                const Eigen::Ref<const Eigen::MatrixXd> & A,
-                                const Eigen::Ref<const Eigen::VectorXd> & b,
-                                const Eigen::Ref<const Eigen::MatrixXd> & C,
-                                const Eigen::Ref<const Eigen::VectorXd> & d,
-                                const Eigen::Ref<const Eigen::VectorXd> & x_min,
-                                const Eigen::Ref<const Eigen::VectorXd> & x_max) override;
+  virtual Eigen::VectorXd solve(
+    int dim_var, int dim_eq, int dim_ineq, Eigen::Ref<Eigen::MatrixXd> Q,
+    const Eigen::Ref<const Eigen::VectorXd> & c, const Eigen::Ref<const Eigen::MatrixXd> & A,
+    const Eigen::Ref<const Eigen::VectorXd> & b, const Eigen::Ref<const Eigen::MatrixXd> & C,
+    const Eigen::Ref<const Eigen::VectorXd> & d, const Eigen::Ref<const Eigen::VectorXd> & x_min,
+    const Eigen::Ref<const Eigen::VectorXd> & x_max) override;
+
+  /** \brief Get parameter manager interface. */
+  std::shared_ptr<tam::pmg::ParamValueManager> getParamHandler() const override { return param_manager_; }
+  
+  /** \brief Declare and update parameters from parameter manager. */
+  void declare_and_update_parameters();
 
 protected:
   std::unique_ptr<proxsuite::proxqp::dense::QP<double>> proxqp_;
-
   struct ProxqpParameters
   {
-    double eps_abs = 1e-6; // Absolute tolerance for stopping criterion (||residual|| <= eps_abs)
-    double eps_rel = 1e-6; // Relative tolerance for stopping criterion (||residual|| / ||rhs|| <= eps_rel)
+    double eps_abs = 1e-6;  // Absolute tolerance for stopping criterion (||residual|| <= eps_abs)
+    double eps_rel =
+      1e-6;  // Relative tolerance for stopping criterion (||residual|| / ||rhs|| <= eps_rel)
     int max_iter = 50;
-    bool verbose = false; // Whether to print solver progress during iterations
+    bool verbose = false;  // Whether to print solver progress during iterations
     bool warm_start = true;
-    bool compute_timings = false; // Whether to compute timing information (useful for benchmarking)
-    bool check_duality_gap = false; // Whether to check duality gap at the end of the solve
+    bool compute_timings =
+      false;  // Whether to compute timing information (useful for benchmarking)
+    bool check_duality_gap = false;  // Whether to check duality gap at the end of the solve
   };
   ProxqpParameters proxqp_params_;
+  
+  std::shared_ptr<tam::pmg::ParamValueManager> param_manager_ = std::make_shared<tam::pmg::ParamValueManager>();
+  std::size_t previous_param_state_hash_ = 0;
 };
 #endif
 
@@ -657,27 +685,31 @@ public:
   QpSolverQpmad();
 
   /** \brief Solve QP. */
-  virtual Eigen::VectorXd solve(int dim_var,
-                                int dim_eq,
-                                int dim_ineq,
-                                Eigen::Ref<Eigen::MatrixXd> Q,
-                                const Eigen::Ref<const Eigen::VectorXd> & c,
-                                const Eigen::Ref<const Eigen::MatrixXd> & A,
-                                const Eigen::Ref<const Eigen::VectorXd> & b,
-                                const Eigen::Ref<const Eigen::MatrixXd> & C,
-                                const Eigen::Ref<const Eigen::VectorXd> & d,
-                                const Eigen::Ref<const Eigen::VectorXd> & x_min,
-                                const Eigen::Ref<const Eigen::VectorXd> & x_max) override;
+  virtual Eigen::VectorXd solve(
+    int dim_var, int dim_eq, int dim_ineq, Eigen::Ref<Eigen::MatrixXd> Q,
+    const Eigen::Ref<const Eigen::VectorXd> & c, const Eigen::Ref<const Eigen::MatrixXd> & A,
+    const Eigen::Ref<const Eigen::VectorXd> & b, const Eigen::Ref<const Eigen::MatrixXd> & C,
+    const Eigen::Ref<const Eigen::VectorXd> & d, const Eigen::Ref<const Eigen::VectorXd> & x_min,
+    const Eigen::Ref<const Eigen::VectorXd> & x_max) override;
+
+  /** \brief Get parameter manager interface. */
+  std::shared_ptr<tam::pmg::ParamValueManager> getParamHandler() const override { return param_manager_; }
+  
+  /** \brief Declare and update parameters from parameter manager. */
+  void declare_and_update_parameters();
 
 protected:
   std::unique_ptr<qpmad::Solver> qpmad_;
+  
+  std::shared_ptr<tam::pmg::ParamValueManager> param_manager_ = std::make_shared<tam::pmg::ParamValueManager>();
+  std::size_t previous_param_state_hash_ = 0;
 };
 #endif
 
 /** \brief Get one QP solver type that is enabled.
 
-    Checks whether each QP solver is enabled in the order of definition in QpSolverType and returns the first one that
-   is enabled.
+    Checks whether each QP solver is enabled in the order of definition in QpSolverType and returns
+   the first one that is enabled.
  */
 QpSolverType getAnyQpSolverType();
 
@@ -690,4 +722,4 @@ bool isQpSolverEnabled(const QpSolverType & qp_solver_type);
     \param qp_solver_type QP solver type
  */
 std::shared_ptr<QpSolver> allocateQpSolver(const QpSolverType & qp_solver_type);
-} // namespace QpSolverCollection
+}  // namespace QpSolverCollection

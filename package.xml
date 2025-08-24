@@ -13,6 +13,7 @@
   <buildtool_depend>ament_cmake</buildtool_depend>
 
   <depend>rclcpp</depend>
+  <depend>param_management_cpp</depend>
 
   <build_depend>eigen</build_depend>
 

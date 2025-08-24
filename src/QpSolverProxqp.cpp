@@ -12,6 +12,35 @@ using namespace QpSolverCollection;
 QpSolverProxqp::QpSolverProxqp()
 {
   type_ = QpSolverType::PROXQP;
+  
+  // Initialize PROXQP parameters
+  declare_and_update_parameters();
+}
+
+void QpSolverProxqp::declare_and_update_parameters()
+{
+  proxqp_params_.eps_abs = param_manager_
+    ->declare_and_get_value("MPC.Solver_PROXQP.eps_abs", 1e-6, tam::pmg::ParameterType::DOUBLE, "")
+    .as_double();
+  proxqp_params_.eps_rel = param_manager_
+    ->declare_and_get_value("MPC.Solver_PROXQP.eps_rel", 1e-6, tam::pmg::ParameterType::DOUBLE, "")
+    .as_double();
+  proxqp_params_.max_iter = param_manager_
+    ->declare_and_get_value("MPC.Solver_PROXQP.max_iter", 50, tam::pmg::ParameterType::INTEGER, "")
+    .as_int();
+  proxqp_params_.verbose = param_manager_
+    ->declare_and_get_value("MPC.Solver_PROXQP.verbose", false, tam::pmg::ParameterType::BOOL, "")
+    .as_bool();
+  proxqp_params_.warm_start = param_manager_
+    ->declare_and_get_value("MPC.Solver_PROXQP.warm_start", true, tam::pmg::ParameterType::BOOL, "")
+    .as_bool();
+  proxqp_params_.compute_timings = param_manager_
+    ->declare_and_get_value("MPC.Solver_PROXQP.compute_timings", false, tam::pmg::ParameterType::BOOL, "")
+    .as_bool();
+  proxqp_params_.check_duality_gap = param_manager_
+    ->declare_and_get_value("MPC.Solver_PROXQP.check_duality_gap", false, tam::pmg::ParameterType::BOOL, "")
+    .as_bool();
+  previous_param_state_hash_ = param_manager_->get_state_hash();
 }
 
 Eigen::VectorXd QpSolverProxqp::solve(int dim_var,
@@ -26,6 +55,11 @@ Eigen::VectorXd QpSolverProxqp::solve(int dim_var,
                                       const Eigen::Ref<const Eigen::VectorXd> & x_min,
                                       const Eigen::Ref<const Eigen::VectorXd> & x_max)
 {
+  // Check if parameters have changed and update if necessary
+  if (param_manager_->get_state_hash() != previous_param_state_hash_) {
+    declare_and_update_parameters();
+  }
+  
   int dim_ineq_with_bound = dim_ineq + dim_var;
   if(!(proxqp_ && proxqp_->model.dim == dim_var && proxqp_->model.n_eq == dim_eq
        && proxqp_->model.n_in == dim_ineq_with_bound))

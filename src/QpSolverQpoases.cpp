@@ -14,6 +14,35 @@ using namespace QpSolverCollection;
 QpSolverQpoases::QpSolverQpoases()
 {
   type_ = QpSolverType::qpOASES;
+  
+  // Initialize qpOASES parameters
+  declare_and_update_parameters();
+}
+
+void QpSolverQpoases::declare_and_update_parameters()
+{
+  qpoases_params_.max_iter = param_manager_
+    ->declare_and_get_value("MPC.Solver_qpOASES.max_iter", 10, tam::pmg::ParameterType::INTEGER, "")
+    .as_int();
+  qpoases_params_.termination_tolerance = param_manager_
+    ->declare_and_get_value("MPC.Solver_qpOASES.termination_tolerance", 1e-2, tam::pmg::ParameterType::DOUBLE, "")
+    .as_double();
+  qpoases_params_.bound_tolerance = param_manager_
+    ->declare_and_get_value("MPC.Solver_qpOASES.bound_tolerance", 1e-4, tam::pmg::ParameterType::DOUBLE, "")
+    .as_double();
+  qpoases_params_.enable_cholesky_refactorisation = param_manager_
+    ->declare_and_get_value("MPC.Solver_qpOASES.enable_cholesky_refactorisation", true, tam::pmg::ParameterType::BOOL, "")
+    .as_bool();
+  qpoases_params_.enable_regularisation = param_manager_
+    ->declare_and_get_value("MPC.Solver_qpOASES.enable_regularisation", false, tam::pmg::ParameterType::BOOL, "")
+    .as_bool();
+  qpoases_params_.use_warm_start = param_manager_
+    ->declare_and_get_value("MPC.Solver_qpOASES.use_warm_start", true, tam::pmg::ParameterType::BOOL, "")
+    .as_bool();
+  qpoases_params_.num_refinement_steps = param_manager_
+    ->declare_and_get_value("MPC.Solver_qpOASES.num_refinement_steps", 1, tam::pmg::ParameterType::INTEGER, "")
+    .as_int();
+  previous_param_state_hash_ = param_manager_->get_state_hash();
 }
 
 Eigen::VectorXd QpSolverQpoases::solve(int dim_var,
@@ -28,6 +57,11 @@ Eigen::VectorXd QpSolverQpoases::solve(int dim_var,
                                        const Eigen::Ref<const Eigen::VectorXd> & x_min,
                                        const Eigen::Ref<const Eigen::VectorXd> & x_max)
 {
+  // Check if parameters have changed and update if necessary
+  if (param_manager_->get_state_hash() != previous_param_state_hash_) {
+    declare_and_update_parameters();
+  }
+  
   Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> AC_row_major(dim_eq + dim_ineq, dim_var);
   Eigen::VectorXd bd_min(dim_eq + dim_ineq);
   Eigen::VectorXd bd_max(dim_eq + dim_ineq);
