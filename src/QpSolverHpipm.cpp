@@ -17,40 +17,54 @@ QpSolverHpipm::QpSolverHpipm()
   qp_sol_ = std::make_unique<struct d_dense_qp_sol>();
   ipm_arg_ = std::make_unique<struct d_dense_qp_ipm_arg>();
   ipm_ws_ = std::make_unique<struct d_dense_qp_ipm_ws>();
-  
+
   // Initialize HPIPM parameters
   declare_and_update_parameters();
 }
-
 void QpSolverHpipm::declare_and_update_parameters()
 {
-  hpipm_params_.max_iter = param_manager_
-    ->declare_and_get_value("MPC.Solver_HPIPM.max_iter", 10, tam::pmg::ParameterType::INTEGER, "")
-    .as_int();
-  hpipm_params_.tol_stat = param_manager_
-    ->declare_and_get_value("MPC.Solver_HPIPM.tol_stat", 1e-3, tam::pmg::ParameterType::DOUBLE, "")
-    .as_double();
-  hpipm_params_.tol_eq = param_manager_
-    ->declare_and_get_value("MPC.Solver_HPIPM.tol_eq", 1e-3, tam::pmg::ParameterType::DOUBLE, "")
-    .as_double();
-  hpipm_params_.tol_ineq = param_manager_
-    ->declare_and_get_value("MPC.Solver_HPIPM.tol_ineq", 1e-3, tam::pmg::ParameterType::DOUBLE, "")
-    .as_double();
-  hpipm_params_.tol_comp = param_manager_
-    ->declare_and_get_value("MPC.Solver_HPIPM.tol_comp", 1e-3, tam::pmg::ParameterType::DOUBLE, "")
-    .as_double();
-  hpipm_params_.warm_start = param_manager_
-    ->declare_and_get_value("MPC.Solver_HPIPM.warm_start", 1, tam::pmg::ParameterType::INTEGER, "")
-    .as_int();
-  hpipm_params_.pred_corr = param_manager_
-    ->declare_and_get_value("MPC.Solver_HPIPM.pred_corr", 1, tam::pmg::ParameterType::INTEGER, "")
-    .as_int();
-  hpipm_params_.cond_pred_corr = param_manager_
-    ->declare_and_get_value("MPC.Solver_HPIPM.cond_pred_corr", 1, tam::pmg::ParameterType::INTEGER, "")
-    .as_int();
-  hpipm_params_.split_step = param_manager_
-    ->declare_and_get_value("MPC.Solver_HPIPM.split_step", 0, tam::pmg::ParameterType::INTEGER, "")
-    .as_int();
+  hpipm_params_.max_iter =
+    param_manager_
+      ->declare_and_get_value("MPC.Solver_HPIPM.max_iter", 10, tam::pmg::ParameterType::INTEGER, "")
+      .as_int();
+  hpipm_params_.tol_stat =
+    param_manager_
+      ->declare_and_get_value(
+        "MPC.Solver_HPIPM.tol_stat", 1e-3, tam::pmg::ParameterType::DOUBLE, "")
+      .as_double();
+  hpipm_params_.tol_eq =
+    param_manager_
+      ->declare_and_get_value("MPC.Solver_HPIPM.tol_eq", 1e-3, tam::pmg::ParameterType::DOUBLE, "")
+      .as_double();
+  hpipm_params_.tol_ineq =
+    param_manager_
+      ->declare_and_get_value(
+        "MPC.Solver_HPIPM.tol_ineq", 1e-3, tam::pmg::ParameterType::DOUBLE, "")
+      .as_double();
+  hpipm_params_.tol_comp =
+    param_manager_
+      ->declare_and_get_value(
+        "MPC.Solver_HPIPM.tol_comp", 1e-3, tam::pmg::ParameterType::DOUBLE, "")
+      .as_double();
+  hpipm_params_.warm_start =
+    param_manager_
+      ->declare_and_get_value(
+        "MPC.Solver_HPIPM.warm_start", 1, tam::pmg::ParameterType::INTEGER, "")
+      .as_int();
+  hpipm_params_.pred_corr =
+    param_manager_
+      ->declare_and_get_value("MPC.Solver_HPIPM.pred_corr", 1, tam::pmg::ParameterType::INTEGER, "")
+      .as_int();
+  hpipm_params_.cond_pred_corr =
+    param_manager_
+      ->declare_and_get_value(
+        "MPC.Solver_HPIPM.cond_pred_corr", 1, tam::pmg::ParameterType::INTEGER, "")
+      .as_int();
+  hpipm_params_.split_step =
+    param_manager_
+      ->declare_and_get_value(
+        "MPC.Solver_HPIPM.split_step", 0, tam::pmg::ParameterType::INTEGER, "")
+      .as_int();
   previous_param_state_hash_ = param_manager_->get_state_hash();
 }
 Eigen::VectorXd QpSolverHpipm::solve(

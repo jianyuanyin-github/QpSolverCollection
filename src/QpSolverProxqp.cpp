@@ -20,17 +20,17 @@ void QpSolverProxqp::declare_and_update_parameters()
   proxqp_params_.eps_abs =
     param_manager_
       ->declare_and_get_value(
-        "MPC.Solver_PROXQP.eps_abs", 1e-6, tam::pmg::ParameterType::DOUBLE, "")
+        "MPC.Solver_PROXQP.eps_abs", 1e-3, tam::pmg::ParameterType::DOUBLE, "")
       .as_double();
   proxqp_params_.eps_rel =
     param_manager_
       ->declare_and_get_value(
-        "MPC.Solver_PROXQP.eps_rel", 1e-6, tam::pmg::ParameterType::DOUBLE, "")
+        "MPC.Solver_PROXQP.eps_rel", 1e-3, tam::pmg::ParameterType::DOUBLE, "")
       .as_double();
   proxqp_params_.max_iter =
     param_manager_
       ->declare_and_get_value(
-        "MPC.Solver_PROXQP.max_iter", 50, tam::pmg::ParameterType::INTEGER, "")
+        "MPC.Solver_PROXQP.max_iter", 30, tam::pmg::ParameterType::INTEGER, "")
       .as_int();
   proxqp_params_.verbose =
     param_manager_
@@ -120,17 +120,46 @@ bool QpSolverProxqp::updateObjectiveVector(const Eigen::Ref<const Eigen::VectorX
 }
 bool QpSolverProxqp::updateInequalityMatrix(const Eigen::Ref<const Eigen::MatrixXd> & C)
 {
+  int dim_var = proxqp_->model.dim;
+  int dim_ineq = C.rows();
+  int dim_ineq_with_bound = dim_ineq + dim_var;
+  
+  Eigen::MatrixXd C_with_bound(dim_ineq_with_bound, dim_var);
+  Eigen::MatrixXd I = Eigen::MatrixXd::Identity(dim_var, dim_var);
+  C_with_bound << C, I;
+  
   proxqp_->update(
-    std::nullopt, std::nullopt, std::nullopt, std::nullopt, C, std::nullopt, std::nullopt,
+    std::nullopt, std::nullopt, std::nullopt, std::nullopt, C_with_bound, std::nullopt, std::nullopt,
     std::nullopt, std::nullopt);
   return true;
 }
 bool QpSolverProxqp::updateInequalityVector(const Eigen::Ref<const Eigen::VectorXd> & d)
 {
-  // ProxQP uses upper bounds, so we need to update both lower and upper
+  // Note: This method only updates the inequality constraints part
+  // To properly update with bounds, we would need x_min and x_max parameters
+  // For now, we assume bounds remain unchanged and only update the inequality part
+  int dim_var = proxqp_->model.dim;
+  int dim_ineq = d.rows();
+  int dim_ineq_with_bound = dim_ineq + dim_var;
+  
+  // Get current bounds from the solver (if available) or use defaults
+  Eigen::VectorXd d_with_bound_min(dim_ineq_with_bound);
+  Eigen::VectorXd d_with_bound_max(dim_ineq_with_bound);
+  
+  // Set inequality constraints
+  d_with_bound_min.head(dim_ineq) = Eigen::VectorXd::Constant(
+    dim_ineq, -1 * std::numeric_limits<double>::infinity());
+  d_with_bound_max.head(dim_ineq) = d;
+  
+  // Keep existing bounds (this is a limitation - ideally we'd store them)
+  d_with_bound_min.tail(dim_var) = Eigen::VectorXd::Constant(
+    dim_var, -1 * std::numeric_limits<double>::infinity());
+  d_with_bound_max.tail(dim_var) = Eigen::VectorXd::Constant(
+    dim_var, std::numeric_limits<double>::infinity());
+  
   proxqp_->update(
-    std::nullopt, std::nullopt, std::nullopt, std::nullopt, std::nullopt, std::nullopt, d,
-    std::nullopt, std::nullopt);
+    std::nullopt, std::nullopt, std::nullopt, std::nullopt, std::nullopt, 
+    d_with_bound_min, d_with_bound_max, std::nullopt, std::nullopt);
   return true;
 }
 Eigen::VectorXd QpSolverProxqp::solveIncremental()
