@@ -16,6 +16,7 @@
 #define QSC_INFO_STREAM(x) std::cout << x << "\n"
 #else
 #include <rclcpp/rclcpp.hpp>
+
 #include "param_management_cpp/param_value_manager.hpp"
 #define QSC_ERROR_STREAM(msg) RCLCPP_ERROR_STREAM(rclcpp::get_logger("QpSolverCollection"), msg)
 #define QSC_WARN_STREAM(msg) RCLCPP_WARN_STREAM(rclcpp::get_logger("QpSolverCollection"), msg)
@@ -239,11 +240,6 @@ public:
   // ===== INCREMENTAL UPDATE INTERFACE =====
   /** \brief Check if solver supports incremental updates. */
   virtual bool supportsIncrementalUpdate() const { return false; }
-  /** \brief Initialize problem for incremental updates.
-      \param qp_coeff Initial QP coefficient
-      \return true if initialization successful
-  */
-  virtual bool initializeIncremental(QpCoeff & qp_coeff) { return false; }
   /** \brief Update objective matrix incrementally.
       \param Q new objective matrix
       \return true if update successful
@@ -281,9 +277,9 @@ public:
   inline QpSolverType type() const { return type_; }
   /** \brief Get whether it failed to solve the QP. */
   inline bool solveFailed() const { return solve_failed_; }
-  
   /** \brief Get parameter manager interface.
-      \return parameter manager shared pointer (returns nullptr for solvers that don't support parameters)
+      \return parameter manager shared pointer (returns nullptr for solvers that don't support
+     parameters)
   */
   virtual std::shared_ptr<tam::pmg::ParamValueManager> getParamHandler() const { return nullptr; }
 
@@ -395,10 +391,11 @@ public:
     const Eigen::Ref<const Eigen::VectorXd> & b, const Eigen::Ref<const Eigen::MatrixXd> & C,
     const Eigen::Ref<const Eigen::VectorXd> & d, const Eigen::Ref<const Eigen::VectorXd> & x_min,
     const Eigen::Ref<const Eigen::VectorXd> & x_max) override;
-
   /** \brief Get parameter manager interface. */
-  std::shared_ptr<tam::pmg::ParamValueManager> getParamHandler() const override { return param_manager_; }
-  
+  std::shared_ptr<tam::pmg::ParamValueManager> getParamHandler() const override
+  {
+    return param_manager_;
+  }
   /** \brief Declare and update parameters from parameter manager. */
   void declare_and_update_parameters();
 
@@ -424,8 +421,9 @@ protected:
     int num_refinement_steps = 1;
   };
   QpoasesParameters qpoases_params_;
-  
-  std::shared_ptr<tam::pmg::ParamValueManager> param_manager_ = std::make_shared<tam::pmg::ParamValueManager>();
+
+  std::shared_ptr<tam::pmg::ParamValueManager> param_manager_ =
+    std::make_shared<tam::pmg::ParamValueManager>();
   std::size_t previous_param_state_hash_ = 0;
 };
 #endif
@@ -461,16 +459,16 @@ public:
   double getDualResidual() const;
   // ===== INCREMENTAL UPDATE IMPLEMENTATION =====
   bool supportsIncrementalUpdate() const override { return true; }
-  bool initializeIncremental(QpCoeff & qp_coeff) override;
   bool updateObjectiveMatrix(Eigen::Ref<Eigen::MatrixXd> Q) override;
   bool updateObjectiveVector(const Eigen::Ref<const Eigen::VectorXd> & c) override;
   bool updateInequalityMatrix(const Eigen::Ref<const Eigen::MatrixXd> & C) override;
   bool updateInequalityVector(const Eigen::Ref<const Eigen::VectorXd> & d) override;
   Eigen::VectorXd solveIncremental() override;
-  
   /** \brief Get parameter manager interface. */
-  std::shared_ptr<tam::pmg::ParamValueManager> getParamHandler() const override { return param_manager_; }
-  
+  std::shared_ptr<tam::pmg::ParamValueManager> getParamHandler() const override
+  {
+    return param_manager_;
+  }
   /** \brief Declare and update parameters from parameter manager. */
   void declare_and_update_parameters();
 
@@ -491,10 +489,10 @@ protected:
   Eigen::VectorXd bd_with_bound_max_;
 
   double sparse_duration_ = 0;  // [ms]
-  
-  std::shared_ptr<tam::pmg::ParamValueManager> param_manager_ = std::make_shared<tam::pmg::ParamValueManager>();
-  std::size_t previous_param_state_hash_ = 0;
 
+  std::shared_ptr<tam::pmg::ParamValueManager> param_manager_ =
+    std::make_shared<tam::pmg::ParamValueManager>();
+  std::size_t previous_param_state_hash_ = 0;
   // OSQP solver parameters
   struct OsqpParameters
   {
@@ -533,10 +531,11 @@ public:
     const Eigen::Ref<const Eigen::VectorXd> & b, const Eigen::Ref<const Eigen::MatrixXd> & C,
     const Eigen::Ref<const Eigen::VectorXd> & d, const Eigen::Ref<const Eigen::VectorXd> & x_min,
     const Eigen::Ref<const Eigen::VectorXd> & x_max) override;
-
   /** \brief Get parameter manager interface. */
-  std::shared_ptr<tam::pmg::ParamValueManager> getParamHandler() const override { return param_manager_; }
-  
+  std::shared_ptr<tam::pmg::ParamValueManager> getParamHandler() const override
+  {
+    return param_manager_;
+  }
   /** \brief Declare and update parameters from parameter manager. */
   void declare_and_update_parameters();
 
@@ -555,8 +554,9 @@ protected:
     std::string nasoq_variant = "auto";  //"tune", "fixed", "auto"
   };
   NasoqParameters nasoq_params_;
-  
-  std::shared_ptr<tam::pmg::ParamValueManager> param_manager_ = std::make_shared<tam::pmg::ParamValueManager>();
+
+  std::shared_ptr<tam::pmg::ParamValueManager> param_manager_ =
+    std::make_shared<tam::pmg::ParamValueManager>();
   std::size_t previous_param_state_hash_ = 0;
 };
 #endif
@@ -578,16 +578,16 @@ public:
     const Eigen::Ref<const Eigen::VectorXd> & x_max) override;
   // ===== INCREMENTAL UPDATE IMPLEMENTATION =====
   bool supportsIncrementalUpdate() const override { return true; }
-  bool initializeIncremental(QpCoeff & qp_coeff) override;
   bool updateObjectiveMatrix(Eigen::Ref<Eigen::MatrixXd> Q) override;
   bool updateObjectiveVector(const Eigen::Ref<const Eigen::VectorXd> & c) override;
   bool updateInequalityMatrix(const Eigen::Ref<const Eigen::MatrixXd> & C) override;
   bool updateInequalityVector(const Eigen::Ref<const Eigen::VectorXd> & d) override;
   Eigen::VectorXd solveIncremental() override;
-  
   /** \brief Get parameter manager interface. */
-  std::shared_ptr<tam::pmg::ParamValueManager> getParamHandler() const override { return param_manager_; }
-  
+  std::shared_ptr<tam::pmg::ParamValueManager> getParamHandler() const override
+  {
+    return param_manager_;
+  }
   /** \brief Declare and update parameters from parameter manager. */
   void declare_and_update_parameters();
 
@@ -627,8 +627,9 @@ protected:
     int split_step = 0;
   };
   HpipmParameters hpipm_params_;
-  
-  std::shared_ptr<tam::pmg::ParamValueManager> param_manager_ = std::make_shared<tam::pmg::ParamValueManager>();
+
+  std::shared_ptr<tam::pmg::ParamValueManager> param_manager_ =
+    std::make_shared<tam::pmg::ParamValueManager>();
   std::size_t previous_param_state_hash_ = 0;
 };
 #endif
@@ -648,12 +649,20 @@ public:
     const Eigen::Ref<const Eigen::VectorXd> & b, const Eigen::Ref<const Eigen::MatrixXd> & C,
     const Eigen::Ref<const Eigen::VectorXd> & d, const Eigen::Ref<const Eigen::VectorXd> & x_min,
     const Eigen::Ref<const Eigen::VectorXd> & x_max) override;
-
   /** \brief Get parameter manager interface. */
-  std::shared_ptr<tam::pmg::ParamValueManager> getParamHandler() const override { return param_manager_; }
-  
+  std::shared_ptr<tam::pmg::ParamValueManager> getParamHandler() const override
+  {
+    return param_manager_;
+  }
   /** \brief Declare and update parameters from parameter manager. */
   void declare_and_update_parameters();
+  // ===== INCREMENTAL UPDATE IMPLEMENTATION =====
+  bool supportsIncrementalUpdate() const override { return true; }
+  bool updateObjectiveMatrix(Eigen::Ref<Eigen::MatrixXd> Q) override;
+  bool updateObjectiveVector(const Eigen::Ref<const Eigen::VectorXd> & c) override;
+  bool updateInequalityMatrix(const Eigen::Ref<const Eigen::MatrixXd> & C) override;
+  bool updateInequalityVector(const Eigen::Ref<const Eigen::VectorXd> & d) override;
+  Eigen::VectorXd solveIncremental() override;
 
 protected:
   std::unique_ptr<proxsuite::proxqp::dense::QP<double>> proxqp_;
@@ -670,8 +679,9 @@ protected:
     bool check_duality_gap = false;  // Whether to check duality gap at the end of the solve
   };
   ProxqpParameters proxqp_params_;
-  
-  std::shared_ptr<tam::pmg::ParamValueManager> param_manager_ = std::make_shared<tam::pmg::ParamValueManager>();
+
+  std::shared_ptr<tam::pmg::ParamValueManager> param_manager_ =
+    std::make_shared<tam::pmg::ParamValueManager>();
   std::size_t previous_param_state_hash_ = 0;
 };
 #endif
@@ -691,17 +701,19 @@ public:
     const Eigen::Ref<const Eigen::VectorXd> & b, const Eigen::Ref<const Eigen::MatrixXd> & C,
     const Eigen::Ref<const Eigen::VectorXd> & d, const Eigen::Ref<const Eigen::VectorXd> & x_min,
     const Eigen::Ref<const Eigen::VectorXd> & x_max) override;
-
   /** \brief Get parameter manager interface. */
-  std::shared_ptr<tam::pmg::ParamValueManager> getParamHandler() const override { return param_manager_; }
-  
+  std::shared_ptr<tam::pmg::ParamValueManager> getParamHandler() const override
+  {
+    return param_manager_;
+  }
   /** \brief Declare and update parameters from parameter manager. */
   void declare_and_update_parameters();
 
 protected:
   std::unique_ptr<qpmad::Solver> qpmad_;
-  
-  std::shared_ptr<tam::pmg::ParamValueManager> param_manager_ = std::make_shared<tam::pmg::ParamValueManager>();
+
+  std::shared_ptr<tam::pmg::ParamValueManager> param_manager_ =
+    std::make_shared<tam::pmg::ParamValueManager>();
   std::size_t previous_param_state_hash_ = 0;
 };
 #endif

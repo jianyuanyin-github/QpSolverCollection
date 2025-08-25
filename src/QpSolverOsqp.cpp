@@ -153,15 +153,6 @@ Eigen::VectorXd QpSolverOsqp::solve(
   return osqp_->getSolution();
 }
 // ===== INCREMENTAL UPDATE IMPLEMENTATION =====
-bool QpSolverOsqp::initializeIncremental(QpCoeff & qp_coeff)
-{
-  // Initialize using the standard solve method to set up all internal structures
-  solve(
-    qp_coeff.dim_var_, qp_coeff.dim_eq_, qp_coeff.dim_ineq_, qp_coeff.obj_mat_, qp_coeff.obj_vec_,
-    qp_coeff.eq_mat_, qp_coeff.eq_vec_, qp_coeff.ineq_mat_, qp_coeff.ineq_vec_, qp_coeff.x_min_,
-    qp_coeff.x_max_);
-  return !solve_failed_;
-}
 bool QpSolverOsqp::updateObjectiveMatrix(Eigen::Ref<Eigen::MatrixXd> Q)
 {
   // Convert to sparse and update
