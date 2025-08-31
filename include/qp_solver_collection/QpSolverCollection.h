@@ -176,6 +176,14 @@ public:
   //! "QpSolver::solve".)
   Eigen::VectorXd ineq_vec_;
 
+  //! Equality constraint vector (corresponding to \f$\boldsymbol{b}\f$ in @ref QpSolver#solve
+  //! "QpSolver::solve".)
+  Eigen::VectorXd ineq_vec_lb_;
+
+  //! Equality constraint vector (corresponding to \f$\boldsymbol{b}\f$ in @ref QpSolver#solve
+  //! "QpSolver::solve".)
+  Eigen::VectorXd ineq_vec_ub_;
+
   //! Lower bound (corresponding to \f$\boldsymbol{x}_{min}\f$ in @ref QpSolver#solve
   //! "QpSolver::solve".)
   Eigen::VectorXd x_min_;
@@ -237,6 +245,36 @@ public:
       \param qp_coeff QP coefficient
   */
   virtual Eigen::VectorXd solve(QpCoeff & qp_coeff);
+
+  /** \brief Solve QP with both-sided inequality constraints.
+      \param dim_var dimension of decision variable
+      \param dim_eq dimension of equality constraint
+      \param dim_ineq dimension of inequality constraint
+      \param Q objective matrix
+      \param c objective vector
+      \param A equality constraint matrix
+      \param b equality constraint vector
+      \param C inequality constraint matrix
+      \param d_lower lower bounds for inequality constraints
+      \param d_upper upper bounds for inequality constraints
+      \param x_min lower bound
+      \param x_max upper bound
+  */
+  virtual Eigen::VectorXd solve(
+    int dim_var, int dim_eq, int dim_ineq, Eigen::Ref<Eigen::MatrixXd> Q,
+    const Eigen::Ref<const Eigen::VectorXd> & c, const Eigen::Ref<const Eigen::MatrixXd> & A,
+    const Eigen::Ref<const Eigen::VectorXd> & b, const Eigen::Ref<const Eigen::MatrixXd> & C,
+    const Eigen::Ref<const Eigen::VectorXd> & d_lower, const Eigen::Ref<const Eigen::VectorXd> & d_upper,
+    const Eigen::Ref<const Eigen::VectorXd> & x_min, const Eigen::Ref<const Eigen::VectorXd> & x_max)
+  {
+    QSC_ERROR_STREAM("[QpSolver] Bilateral constraints not supported by this solver");
+    return Eigen::VectorXd::Zero(dim_var);
+  }
+
+  /** \brief Solve QP with both-sided inequality constraints using QpCoeff structure.
+      \param qp_coeff QP coefficient containing bilateral constraint bounds
+  */
+  virtual Eigen::VectorXd solve_bothside(QpCoeff & qp_coeff);
   // ===== INCREMENTAL UPDATE INTERFACE =====
   /** \brief Check if solver supports incremental updates. */
   virtual bool supportsIncrementalUpdate() const { return false; }
@@ -260,6 +298,17 @@ public:
       \return true if update successful
   */
   virtual bool updateInequalityVector(const Eigen::Ref<const Eigen::VectorXd> & d) { return false; }
+  /** \brief Update inequality constraint bounds incrementally (bilateral constraints).
+      \param d_lower new lower bounds for inequality constraints
+      \param d_upper new upper bounds for inequality constraints
+      \return true if update successful
+  */
+  virtual bool updateInequalityVectorBothSide(
+    const Eigen::Ref<const Eigen::VectorXd> & d_lower,
+    const Eigen::Ref<const Eigen::VectorXd> & d_upper)
+  {
+    return false;
+  }
   /** \brief Update variable bounds incrementally.
       \param x_min new lower bounds
       \param x_max new upper bounds
@@ -391,6 +440,14 @@ public:
     const Eigen::Ref<const Eigen::VectorXd> & b, const Eigen::Ref<const Eigen::MatrixXd> & C,
     const Eigen::Ref<const Eigen::VectorXd> & d, const Eigen::Ref<const Eigen::VectorXd> & x_min,
     const Eigen::Ref<const Eigen::VectorXd> & x_max) override;
+
+  /** \brief Solve QP with both-sided inequality constraints. */
+  virtual Eigen::VectorXd solve(
+    int dim_var, int dim_eq, int dim_ineq, Eigen::Ref<Eigen::MatrixXd> Q,
+    const Eigen::Ref<const Eigen::VectorXd> & c, const Eigen::Ref<const Eigen::MatrixXd> & A,
+    const Eigen::Ref<const Eigen::VectorXd> & b, const Eigen::Ref<const Eigen::MatrixXd> & C,
+    const Eigen::Ref<const Eigen::VectorXd> & d_lower, const Eigen::Ref<const Eigen::VectorXd> & d_upper,
+    const Eigen::Ref<const Eigen::VectorXd> & x_min, const Eigen::Ref<const Eigen::VectorXd> & x_max) override;
   /** \brief Get parameter manager interface. */
   std::shared_ptr<tam::pmg::ParamValueManager> getParamHandler() const override
   {
@@ -446,6 +503,14 @@ public:
     const Eigen::Ref<const Eigen::VectorXd> & d, const Eigen::Ref<const Eigen::VectorXd> & x_min,
     const Eigen::Ref<const Eigen::VectorXd> & x_max) override;
 
+  /** \brief Solve QP with both-sided inequality constraints. */
+  virtual Eigen::VectorXd solve(
+    int dim_var, int dim_eq, int dim_ineq, Eigen::Ref<Eigen::MatrixXd> Q,
+    const Eigen::Ref<const Eigen::VectorXd> & c, const Eigen::Ref<const Eigen::MatrixXd> & A,
+    const Eigen::Ref<const Eigen::VectorXd> & b, const Eigen::Ref<const Eigen::MatrixXd> & C,
+    const Eigen::Ref<const Eigen::VectorXd> & d_lower, const Eigen::Ref<const Eigen::VectorXd> & d_upper,
+    const Eigen::Ref<const Eigen::VectorXd> & x_min, const Eigen::Ref<const Eigen::VectorXd> & x_max) override;
+
   /** \brief Get solver status. */
   int getSolverStatus() const;
 
@@ -463,6 +528,9 @@ public:
   bool updateObjectiveVector(const Eigen::Ref<const Eigen::VectorXd> & c) override;
   bool updateInequalityMatrix(const Eigen::Ref<const Eigen::MatrixXd> & C) override;
   bool updateInequalityVector(const Eigen::Ref<const Eigen::VectorXd> & d) override;
+  bool updateInequalityVectorBothSide(
+    const Eigen::Ref<const Eigen::VectorXd> & d_lower,
+    const Eigen::Ref<const Eigen::VectorXd> & d_upper) override;
   Eigen::VectorXd solveIncremental() override;
   /** \brief Get parameter manager interface. */
   std::shared_ptr<tam::pmg::ParamValueManager> getParamHandler() const override
@@ -576,12 +644,23 @@ public:
     const Eigen::Ref<const Eigen::VectorXd> & b, const Eigen::Ref<const Eigen::MatrixXd> & C,
     const Eigen::Ref<const Eigen::VectorXd> & d, const Eigen::Ref<const Eigen::VectorXd> & x_min,
     const Eigen::Ref<const Eigen::VectorXd> & x_max) override;
+
+  /** \brief Solve QP with both-sided inequality constraints. */
+  virtual Eigen::VectorXd solve(
+    int dim_var, int dim_eq, int dim_ineq, Eigen::Ref<Eigen::MatrixXd> Q,
+    const Eigen::Ref<const Eigen::VectorXd> & c, const Eigen::Ref<const Eigen::MatrixXd> & A,
+    const Eigen::Ref<const Eigen::VectorXd> & b, const Eigen::Ref<const Eigen::MatrixXd> & C,
+    const Eigen::Ref<const Eigen::VectorXd> & d_lower, const Eigen::Ref<const Eigen::VectorXd> & d_upper,
+    const Eigen::Ref<const Eigen::VectorXd> & x_min, const Eigen::Ref<const Eigen::VectorXd> & x_max) override;
   // ===== INCREMENTAL UPDATE IMPLEMENTATION =====
   bool supportsIncrementalUpdate() const override { return true; }
   bool updateObjectiveMatrix(Eigen::Ref<Eigen::MatrixXd> Q) override;
   bool updateObjectiveVector(const Eigen::Ref<const Eigen::VectorXd> & c) override;
   bool updateInequalityMatrix(const Eigen::Ref<const Eigen::MatrixXd> & C) override;
   bool updateInequalityVector(const Eigen::Ref<const Eigen::VectorXd> & d) override;
+  bool updateInequalityVectorBothSide(
+    const Eigen::Ref<const Eigen::VectorXd> & d_lower,
+    const Eigen::Ref<const Eigen::VectorXd> & d_upper) override;
   Eigen::VectorXd solveIncremental() override;
   /** \brief Get parameter manager interface. */
   std::shared_ptr<tam::pmg::ParamValueManager> getParamHandler() const override
@@ -649,6 +728,14 @@ public:
     const Eigen::Ref<const Eigen::VectorXd> & b, const Eigen::Ref<const Eigen::MatrixXd> & C,
     const Eigen::Ref<const Eigen::VectorXd> & d, const Eigen::Ref<const Eigen::VectorXd> & x_min,
     const Eigen::Ref<const Eigen::VectorXd> & x_max) override;
+
+  /** \brief Solve QP with both-sided inequality constraints. */
+  virtual Eigen::VectorXd solve(
+    int dim_var, int dim_eq, int dim_ineq, Eigen::Ref<Eigen::MatrixXd> Q,
+    const Eigen::Ref<const Eigen::VectorXd> & c, const Eigen::Ref<const Eigen::MatrixXd> & A,
+    const Eigen::Ref<const Eigen::VectorXd> & b, const Eigen::Ref<const Eigen::MatrixXd> & C,
+    const Eigen::Ref<const Eigen::VectorXd> & d_lower, const Eigen::Ref<const Eigen::VectorXd> & d_upper,
+    const Eigen::Ref<const Eigen::VectorXd> & x_min, const Eigen::Ref<const Eigen::VectorXd> & x_max) override;
   /** \brief Get parameter manager interface. */
   std::shared_ptr<tam::pmg::ParamValueManager> getParamHandler() const override
   {
@@ -662,6 +749,9 @@ public:
   bool updateObjectiveVector(const Eigen::Ref<const Eigen::VectorXd> & c) override;
   bool updateInequalityMatrix(const Eigen::Ref<const Eigen::MatrixXd> & C) override;
   bool updateInequalityVector(const Eigen::Ref<const Eigen::VectorXd> & d) override;
+  bool updateInequalityVectorBothSide(
+    const Eigen::Ref<const Eigen::VectorXd> & d_lower,
+    const Eigen::Ref<const Eigen::VectorXd> & d_upper) override;
   Eigen::VectorXd solveIncremental() override;
 
 protected:

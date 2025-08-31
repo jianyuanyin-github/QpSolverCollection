@@ -113,6 +113,67 @@ Eigen::VectorXd QpSolverQpoases::solve(int dim_var,
   return sol;
 }
 
+Eigen::VectorXd QpSolverQpoases::solve(
+  int dim_var, int dim_eq, int dim_ineq, Eigen::Ref<Eigen::MatrixXd> Q,
+  const Eigen::Ref<const Eigen::VectorXd> & c, const Eigen::Ref<const Eigen::MatrixXd> & A,
+  const Eigen::Ref<const Eigen::VectorXd> & b, const Eigen::Ref<const Eigen::MatrixXd> & C,
+  const Eigen::Ref<const Eigen::VectorXd> & d_lower, const Eigen::Ref<const Eigen::VectorXd> & d_upper,
+  const Eigen::Ref<const Eigen::VectorXd> & x_min, const Eigen::Ref<const Eigen::VectorXd> & x_max)
+{
+  // Check if parameters have changed and update if necessary
+  if (param_manager_->get_state_hash() != previous_param_state_hash_) {
+    declare_and_update_parameters();
+  }
+
+  // qpOASES supports bilateral constraints natively
+  int dim_constraints = dim_eq + dim_ineq;
+  Eigen::MatrixXd AC(dim_constraints, dim_var);
+  Eigen::VectorXd bd_min(dim_constraints);
+  Eigen::VectorXd bd_max(dim_constraints);
+
+  AC << A, C;
+  // Use bilateral constraints: d_lower <= Cx <= d_upper
+  bd_min << b, d_lower;
+  bd_max << b, d_upper;
+
+  qpOASES::returnValue status = qpOASES::TERMINAL_LIST_ELEMENT;
+  if (!solve_failed_ && !force_initialize_ && qpoases_ && qpoases_->getNV() == dim_var
+      && qpoases_->getNC() == dim_constraints) {
+    // Hot start
+    status = qpoases_->hotstart(Q.data(), c.data(), AC.data(), x_min.data(), x_max.data(),
+                                bd_min.data(), bd_max.data(), n_wsr_);
+  } else {
+    // Cold start
+    qpoases_ = std::make_unique<qpOASES::SQProblem>(dim_var, dim_constraints);
+    
+    // Set options
+    qpOASES::Options options;
+    options.setToMPC();
+    options.terminationTolerance = qpoases_params_.termination_tolerance;
+    options.boundTolerance = qpoases_params_.bound_tolerance;
+    options.enableCholeskyRefactorisation = 
+      qpoases_params_.enable_cholesky_refactorisation ? qpOASES::BT_TRUE : qpOASES::BT_FALSE;
+    options.enableRegularisation = 
+      qpoases_params_.enable_regularisation ? qpOASES::BT_TRUE : qpOASES::BT_FALSE;
+    options.numRefinementSteps = qpoases_params_.num_refinement_steps;
+    qpoases_->setOptions(options);
+
+    status = qpoases_->init(Q.data(), c.data(), AC.data(), x_min.data(), x_max.data(),
+                            bd_min.data(), bd_max.data(), n_wsr_);
+  }
+
+  if (status == qpOASES::SUCCESSFUL_RETURN) {
+    solve_failed_ = false;
+  } else {
+    solve_failed_ = true;
+    QSC_WARN_STREAM("[QpSolverQpoases::solve bilateral] Failed to solve: " << status);
+  }
+
+  Eigen::VectorXd sol(dim_var);
+  qpoases_->getPrimalSolution(sol.data());
+  return sol;
+}
+
 namespace QpSolverCollection
 {
 std::shared_ptr<QpSolver> allocateQpSolverQpoases()
