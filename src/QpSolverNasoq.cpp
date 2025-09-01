@@ -78,8 +78,18 @@ Eigen::VectorXd QpSolverNasoq::solve(int dim_var,
   settings.max_iter = nasoq_params_.max_iter;
   settings.nasoq_variant = nasoq_params_.nasoq_variant;
 
+  auto solve_start_time = clock::now();
   int solve_ret = nasoq::quadprog(Q_sparse_.triangularView<Eigen::Lower>(), c, A_sparse_, b, C_with_bound_sparse_,
                                   d_with_bound, sol, dual_eq, dual_ineq, &settings);
+  auto solve_end_time = clock::now();
+  solve_time_us_ = std::chrono::duration_cast<std::chrono::microseconds>(
+                     solve_end_time - solve_start_time)
+                     .count();
+
+  // Log solver time for performance analysis  
+  if (logger_) {
+    logger_->log("solver_time_pure", solve_time_us_);
+  }
 
   if(solve_ret == nasoq::Optimal)
   {

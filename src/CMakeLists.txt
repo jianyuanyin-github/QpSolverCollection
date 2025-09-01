@@ -22,6 +22,7 @@ if(USE_ROS2)
   target_link_libraries(QpSolverCollection PUBLIC
     rclcpp::rclcpp
     param_management_cpp::param_management_cpp
+    tsl_logger_cpp::tsl_logger_cpp
   )
 else()
   target_compile_definitions(QpSolverCollection PUBLIC QP_SOLVER_COLLECTION_STANDALONE)

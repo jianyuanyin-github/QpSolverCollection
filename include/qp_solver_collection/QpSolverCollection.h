@@ -18,6 +18,7 @@
 #include <rclcpp/rclcpp.hpp>
 
 #include "param_management_cpp/param_value_manager.hpp"
+#include "tsl_logger_cpp/value_logger.hpp"
 #define QSC_ERROR_STREAM(msg) RCLCPP_ERROR_STREAM(rclcpp::get_logger("QpSolverCollection"), msg)
 #define QSC_WARN_STREAM(msg) RCLCPP_WARN_STREAM(rclcpp::get_logger("QpSolverCollection"), msg)
 #define QSC_INFO_STREAM(msg) RCLCPP_INFO_STREAM(rclcpp::get_logger("QpSolverCollection"), msg)
@@ -478,9 +479,12 @@ protected:
     int num_refinement_steps = 1;
   };
   QpoasesParameters qpoases_params_;
+  double solve_time_us_ = 0;     // [us] Pure solve time
 
   std::shared_ptr<tam::pmg::ParamValueManager> param_manager_ =
     std::make_shared<tam::pmg::ParamValueManager>();
+  std::shared_ptr<tam::tsl::ValueLogger> logger_ = 
+    std::make_shared<tam::tsl::ValueLogger>();
   std::size_t previous_param_state_hash_ = 0;
 };
 #endif
@@ -557,9 +561,12 @@ protected:
   Eigen::VectorXd bd_with_bound_max_;
 
   double sparse_duration_ = 0;  // [ms]
+  double solve_time_us_ = 0;     // [us] Pure solve time
 
   std::shared_ptr<tam::pmg::ParamValueManager> param_manager_ =
     std::make_shared<tam::pmg::ParamValueManager>();
+  std::shared_ptr<tam::tsl::ValueLogger> logger_ = 
+    std::make_shared<tam::tsl::ValueLogger>();
   std::size_t previous_param_state_hash_ = 0;
   // OSQP solver parameters
   struct OsqpParameters
@@ -622,9 +629,12 @@ protected:
     std::string nasoq_variant = "auto";  //"tune", "fixed", "auto"
   };
   NasoqParameters nasoq_params_;
+  double solve_time_us_ = 0;     // [us] Pure solve time
 
   std::shared_ptr<tam::pmg::ParamValueManager> param_manager_ =
     std::make_shared<tam::pmg::ParamValueManager>();
+  std::shared_ptr<tam::tsl::ValueLogger> logger_ = 
+    std::make_shared<tam::tsl::ValueLogger>();
   std::size_t previous_param_state_hash_ = 0;
 };
 #endif
@@ -706,9 +716,12 @@ protected:
     int split_step = 0;
   };
   HpipmParameters hpipm_params_;
+  double solve_time_us_ = 0;     // [us] Pure solve time
 
   std::shared_ptr<tam::pmg::ParamValueManager> param_manager_ =
     std::make_shared<tam::pmg::ParamValueManager>();
+  std::shared_ptr<tam::tsl::ValueLogger> logger_ = 
+    std::make_shared<tam::tsl::ValueLogger>();
   std::size_t previous_param_state_hash_ = 0;
 };
 #endif
@@ -769,9 +782,12 @@ protected:
     bool check_duality_gap = false;  // Whether to check duality gap at the end of the solve
   };
   ProxqpParameters proxqp_params_;
+  double solve_time_us_ = 0;     // [us] Pure solve time
 
   std::shared_ptr<tam::pmg::ParamValueManager> param_manager_ =
     std::make_shared<tam::pmg::ParamValueManager>();
+  std::shared_ptr<tam::tsl::ValueLogger> logger_ = 
+    std::make_shared<tam::tsl::ValueLogger>();
   std::size_t previous_param_state_hash_ = 0;
 };
 #endif

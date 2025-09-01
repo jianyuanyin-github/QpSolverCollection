@@ -86,7 +86,17 @@ Eigen::VectorXd QpSolverProxqp::solve(
   d_with_bound_max << d, x_max;
 
   proxqp_->update(Q, c, A, b, C_with_bound, d_with_bound_min, d_with_bound_max);
+  auto solve_start_time = clock::now();
   proxqp_->solve();
+  auto solve_end_time = clock::now();
+  solve_time_us_ = std::chrono::duration_cast<std::chrono::microseconds>(
+                     solve_end_time - solve_start_time)
+                     .count();
+
+  // Log solver time for performance analysis  
+  if (logger_) {
+    logger_->log("solver_time_pure", solve_time_us_);
+  }
 
   if (proxqp_->results.info.status == proxsuite::proxqp::QPSolverOutput::PROXQP_SOLVED) {
     solve_failed_ = false;
@@ -134,7 +144,17 @@ Eigen::VectorXd QpSolverProxqp::solve(
   proxqp_ = std::make_unique<proxsuite::proxqp::dense::QP<double>>(dim_var, dim_eq, dim_eq_ineq_with_bound);
   
   proxqp_->update(Q, c, A, b, AC_with_bound, bd_with_bound_min, bd_with_bound_max);
+  auto solve_start_time = clock::now();
   proxqp_->solve();
+  auto solve_end_time = clock::now();
+  solve_time_us_ = std::chrono::duration_cast<std::chrono::microseconds>(
+                     solve_end_time - solve_start_time)
+                     .count();
+
+  // Log solver time for performance analysis  
+  if (logger_) {
+    logger_->log("solver_time_pure", solve_time_us_);
+  }
 
   if (proxqp_->results.info.status == proxsuite::proxqp::QPSolverOutput::PROXQP_SOLVED) {
     solve_failed_ = false;
@@ -235,7 +255,17 @@ bool QpSolverProxqp::updateInequalityVectorBothSide(
 }
 Eigen::VectorXd QpSolverProxqp::solveIncremental()
 {
+  auto solve_start_time = clock::now();
   proxqp_->solve();
+  auto solve_end_time = clock::now();
+  solve_time_us_ = std::chrono::duration_cast<std::chrono::microseconds>(
+                     solve_end_time - solve_start_time)
+                     .count();
+
+  // Log solver time for performance analysis  
+  if (logger_) {
+    logger_->log("solver_time_pure", solve_time_us_);
+  }
 
   if (proxqp_->results.info.status == proxsuite::proxqp::QPSolverOutput::PROXQP_SOLVED) {
     solve_failed_ = false;

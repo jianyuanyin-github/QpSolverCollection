@@ -14,6 +14,7 @@
 
   <depend>rclcpp</depend>
   <depend>param_management_cpp</depend>
+  <depend>tsl_logger_cpp</depend>
 
   <build_depend>eigen</build_depend>
 

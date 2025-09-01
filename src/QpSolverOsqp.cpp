@@ -151,7 +151,17 @@ Eigen::VectorXd QpSolverOsqp::solve(
     osqp_->initSolver();
   }
 
+  auto solve_start_time = clock::now();
   auto status = osqp_->solveProblem();
+  auto solve_end_time = clock::now();
+  solve_time_us_ = std::chrono::duration_cast<std::chrono::microseconds>(
+                     solve_end_time - solve_start_time)
+                     .count();
+
+  // Log solver time for performance analysis
+  if (logger_) {
+    logger_->log("solver_time_pure", solve_time_us_);
+  }
 
   if (status == OsqpEigen::ErrorExitFlag::NoError) {
     solve_failed_ = false;
@@ -237,7 +247,17 @@ Eigen::VectorXd QpSolverOsqp::solve(
     osqp_->initSolver();
   }
 
+  auto solve_start_time = clock::now();
   auto status = osqp_->solveProblem();
+  auto solve_end_time = clock::now();
+  solve_time_us_ = std::chrono::duration_cast<std::chrono::microseconds>(
+                     solve_end_time - solve_start_time)
+                     .count();
+
+  // Log solver time for performance analysis
+  if (logger_) {
+    logger_->log("solver_time_pure", solve_time_us_);
+  }
 
   if (status == OsqpEigen::ErrorExitFlag::NoError) {
     solve_failed_ = false;
@@ -300,7 +320,14 @@ bool QpSolverOsqp::updateInequalityVectorBothSide(
 }
 Eigen::VectorXd QpSolverOsqp::solveIncremental()
 {
+  auto solve_start_time = clock::now();
   auto status = osqp_->solveProblem();
+  auto solve_end_time = clock::now();
+  solve_time_us_ = std::chrono::duration_cast<std::chrono::microseconds>(
+                     solve_end_time - solve_start_time)
+                     .count();
+
+  QSC_INFO_STREAM("[OSQP_SOLVER_TIME] Pure incremental solve time: " << solve_time_us_ << " us");
 
   if (status == OsqpEigen::ErrorExitFlag::NoError) {
     solve_failed_ = false;

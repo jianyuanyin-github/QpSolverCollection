@@ -137,7 +137,17 @@ Eigen::VectorXd QpSolverHpipm::solve(
 
   // Solve QP
   {
+    auto solve_start_time = clock::now();
     d_dense_qp_ipm_solve(qp_.get(), qp_sol_.get(), ipm_arg_.get(), ipm_ws_.get());
+    auto solve_end_time = clock::now();
+    solve_time_us_ = std::chrono::duration_cast<std::chrono::microseconds>(
+                       solve_end_time - solve_start_time)
+                       .count();
+    
+    // Log solver time for performance analysis  
+    if (logger_) {
+      logger_->log("solver_time_pure", solve_time_us_);
+    }
     d_dense_qp_sol_get_v(qp_sol_.get(), opt_x_mem_.get());
 
     int status;
@@ -224,7 +234,17 @@ Eigen::VectorXd QpSolverHpipm::solve(
 
   // Solve QP
   {
+    auto solve_start_time = clock::now();
     d_dense_qp_ipm_solve(qp_.get(), qp_sol_.get(), ipm_arg_.get(), ipm_ws_.get());
+    auto solve_end_time = clock::now();
+    solve_time_us_ = std::chrono::duration_cast<std::chrono::microseconds>(
+                       solve_end_time - solve_start_time)
+                       .count();
+    
+    // Log solver time for performance analysis  
+    if (logger_) {
+      logger_->log("solver_time_pure", solve_time_us_);
+    }
     d_dense_qp_sol_get_v(qp_sol_.get(), opt_x_mem_.get());
 
     int status;
@@ -279,7 +299,18 @@ bool QpSolverHpipm::updateInequalityVectorBothSide(
 Eigen::VectorXd QpSolverHpipm::solveIncremental()
 {
   // Solve QP with current state
+  auto solve_start_time = clock::now();
   d_dense_qp_ipm_solve(qp_.get(), qp_sol_.get(), ipm_arg_.get(), ipm_ws_.get());
+  auto solve_end_time = clock::now();
+  solve_time_us_ = std::chrono::duration_cast<std::chrono::microseconds>(
+                     solve_end_time - solve_start_time)
+                     .count();
+  
+  // Log solver time for performance analysis  
+  if (logger_) {
+    logger_->log("solver_time_pure", solve_time_us_);
+  }
+  
   d_dense_qp_sol_get_v(qp_sol_.get(), opt_x_mem_.get());
 
   int status;
