@@ -246,7 +246,6 @@ public:
       \param qp_coeff QP coefficient
   */
   virtual Eigen::VectorXd solve(QpCoeff & qp_coeff);
-
   /** \brief Solve QP with both-sided inequality constraints.
       \param dim_var dimension of decision variable
       \param dim_eq dimension of equality constraint
@@ -265,13 +264,14 @@ public:
     int dim_var, int dim_eq, int dim_ineq, Eigen::Ref<Eigen::MatrixXd> Q,
     const Eigen::Ref<const Eigen::VectorXd> & c, const Eigen::Ref<const Eigen::MatrixXd> & A,
     const Eigen::Ref<const Eigen::VectorXd> & b, const Eigen::Ref<const Eigen::MatrixXd> & C,
-    const Eigen::Ref<const Eigen::VectorXd> & d_lower, const Eigen::Ref<const Eigen::VectorXd> & d_upper,
-    const Eigen::Ref<const Eigen::VectorXd> & x_min, const Eigen::Ref<const Eigen::VectorXd> & x_max)
+    const Eigen::Ref<const Eigen::VectorXd> & d_lower,
+    const Eigen::Ref<const Eigen::VectorXd> & d_upper,
+    const Eigen::Ref<const Eigen::VectorXd> & x_min,
+    const Eigen::Ref<const Eigen::VectorXd> & x_max)
   {
     QSC_ERROR_STREAM("[QpSolver] Bilateral constraints not supported by this solver");
     return Eigen::VectorXd::Zero(dim_var);
   }
-
   /** \brief Solve QP with both-sided inequality constraints using QpCoeff structure.
       \param qp_coeff QP coefficient containing bilateral constraint bounds
   */
@@ -310,11 +310,16 @@ public:
   {
     return false;
   }
-  /** \brief Update variable bounds incrementally.
-      \param x_min new lower bounds
-      \param x_max new upper bounds
+  /** \brief Update equality constraint matrix incrementally.
+      \param A new equality constraint matrix
       \return true if update successful
   */
+  virtual bool updateEqualityMatrix(const Eigen::Ref<const Eigen::MatrixXd> & A) { return false; }
+  /** \brief Update equality constraint vector incrementally.
+      \param b new equality constraint vector
+      \return true if update successful
+  */
+  virtual bool updateEqualityVector(const Eigen::Ref<const Eigen::VectorXd> & b) { return false; }
   /** \brief Solve QP incrementally (after updates).
       \return solution vector
   */
@@ -447,8 +452,10 @@ public:
     int dim_var, int dim_eq, int dim_ineq, Eigen::Ref<Eigen::MatrixXd> Q,
     const Eigen::Ref<const Eigen::VectorXd> & c, const Eigen::Ref<const Eigen::MatrixXd> & A,
     const Eigen::Ref<const Eigen::VectorXd> & b, const Eigen::Ref<const Eigen::MatrixXd> & C,
-    const Eigen::Ref<const Eigen::VectorXd> & d_lower, const Eigen::Ref<const Eigen::VectorXd> & d_upper,
-    const Eigen::Ref<const Eigen::VectorXd> & x_min, const Eigen::Ref<const Eigen::VectorXd> & x_max) override;
+    const Eigen::Ref<const Eigen::VectorXd> & d_lower,
+    const Eigen::Ref<const Eigen::VectorXd> & d_upper,
+    const Eigen::Ref<const Eigen::VectorXd> & x_min,
+    const Eigen::Ref<const Eigen::VectorXd> & x_max) override;
   /** \brief Get parameter manager interface. */
   std::shared_ptr<tam::pmg::ParamValueManager> getParamHandler() const override
   {
@@ -479,12 +486,11 @@ protected:
     int num_refinement_steps = 1;
   };
   QpoasesParameters qpoases_params_;
-  double solve_time_us_ = 0;     // [us] Pure solve time
+  double solve_time_us_ = 0;  // [us] Pure solve time
 
   std::shared_ptr<tam::pmg::ParamValueManager> param_manager_ =
     std::make_shared<tam::pmg::ParamValueManager>();
-  std::shared_ptr<tam::tsl::ValueLogger> logger_ = 
-    std::make_shared<tam::tsl::ValueLogger>();
+  std::shared_ptr<tam::tsl::ValueLogger> logger_ = std::make_shared<tam::tsl::ValueLogger>();
   std::size_t previous_param_state_hash_ = 0;
 };
 #endif
@@ -512,8 +518,10 @@ public:
     int dim_var, int dim_eq, int dim_ineq, Eigen::Ref<Eigen::MatrixXd> Q,
     const Eigen::Ref<const Eigen::VectorXd> & c, const Eigen::Ref<const Eigen::MatrixXd> & A,
     const Eigen::Ref<const Eigen::VectorXd> & b, const Eigen::Ref<const Eigen::MatrixXd> & C,
-    const Eigen::Ref<const Eigen::VectorXd> & d_lower, const Eigen::Ref<const Eigen::VectorXd> & d_upper,
-    const Eigen::Ref<const Eigen::VectorXd> & x_min, const Eigen::Ref<const Eigen::VectorXd> & x_max) override;
+    const Eigen::Ref<const Eigen::VectorXd> & d_lower,
+    const Eigen::Ref<const Eigen::VectorXd> & d_upper,
+    const Eigen::Ref<const Eigen::VectorXd> & x_min,
+    const Eigen::Ref<const Eigen::VectorXd> & x_max) override;
 
   /** \brief Get solver status. */
   int getSolverStatus() const;
@@ -535,6 +543,8 @@ public:
   bool updateInequalityVectorBothSide(
     const Eigen::Ref<const Eigen::VectorXd> & d_lower,
     const Eigen::Ref<const Eigen::VectorXd> & d_upper) override;
+  bool updateEqualityMatrix(const Eigen::Ref<const Eigen::MatrixXd> & A) override;
+  bool updateEqualityVector(const Eigen::Ref<const Eigen::VectorXd> & b) override;
   Eigen::VectorXd solveIncremental() override;
   /** \brief Get parameter manager interface. */
   std::shared_ptr<tam::pmg::ParamValueManager> getParamHandler() const override
@@ -560,13 +570,17 @@ protected:
   Eigen::VectorXd bd_with_bound_min_;
   Eigen::VectorXd bd_with_bound_max_;
 
+  // Dimension tracking for incremental updates
+  int dim_var_ = 0;
+  int dim_eq_ = 0;
+  int dim_ineq_ = 0;
+
   double sparse_duration_ = 0;  // [ms]
-  double solve_time_us_ = 0;     // [us] Pure solve time
+  double solve_time_us_ = 0;    // [us] Pure solve time
 
   std::shared_ptr<tam::pmg::ParamValueManager> param_manager_ =
     std::make_shared<tam::pmg::ParamValueManager>();
-  std::shared_ptr<tam::tsl::ValueLogger> logger_ = 
-    std::make_shared<tam::tsl::ValueLogger>();
+  std::shared_ptr<tam::tsl::ValueLogger> logger_ = std::make_shared<tam::tsl::ValueLogger>();
   std::size_t previous_param_state_hash_ = 0;
   // OSQP solver parameters
   struct OsqpParameters
@@ -629,12 +643,11 @@ protected:
     std::string nasoq_variant = "auto";  //"tune", "fixed", "auto"
   };
   NasoqParameters nasoq_params_;
-  double solve_time_us_ = 0;     // [us] Pure solve time
+  double solve_time_us_ = 0;  // [us] Pure solve time
 
   std::shared_ptr<tam::pmg::ParamValueManager> param_manager_ =
     std::make_shared<tam::pmg::ParamValueManager>();
-  std::shared_ptr<tam::tsl::ValueLogger> logger_ = 
-    std::make_shared<tam::tsl::ValueLogger>();
+  std::shared_ptr<tam::tsl::ValueLogger> logger_ = std::make_shared<tam::tsl::ValueLogger>();
   std::size_t previous_param_state_hash_ = 0;
 };
 #endif
@@ -660,8 +673,10 @@ public:
     int dim_var, int dim_eq, int dim_ineq, Eigen::Ref<Eigen::MatrixXd> Q,
     const Eigen::Ref<const Eigen::VectorXd> & c, const Eigen::Ref<const Eigen::MatrixXd> & A,
     const Eigen::Ref<const Eigen::VectorXd> & b, const Eigen::Ref<const Eigen::MatrixXd> & C,
-    const Eigen::Ref<const Eigen::VectorXd> & d_lower, const Eigen::Ref<const Eigen::VectorXd> & d_upper,
-    const Eigen::Ref<const Eigen::VectorXd> & x_min, const Eigen::Ref<const Eigen::VectorXd> & x_max) override;
+    const Eigen::Ref<const Eigen::VectorXd> & d_lower,
+    const Eigen::Ref<const Eigen::VectorXd> & d_upper,
+    const Eigen::Ref<const Eigen::VectorXd> & x_min,
+    const Eigen::Ref<const Eigen::VectorXd> & x_max) override;
   // ===== INCREMENTAL UPDATE IMPLEMENTATION =====
   bool supportsIncrementalUpdate() const override { return true; }
   bool updateObjectiveMatrix(Eigen::Ref<Eigen::MatrixXd> Q) override;
@@ -671,6 +686,8 @@ public:
   bool updateInequalityVectorBothSide(
     const Eigen::Ref<const Eigen::VectorXd> & d_lower,
     const Eigen::Ref<const Eigen::VectorXd> & d_upper) override;
+  bool updateEqualityMatrix(const Eigen::Ref<const Eigen::MatrixXd> & A) override;
+  bool updateEqualityVector(const Eigen::Ref<const Eigen::VectorXd> & b) override;
   Eigen::VectorXd solveIncremental() override;
   /** \brief Get parameter manager interface. */
   std::shared_ptr<tam::pmg::ParamValueManager> getParamHandler() const override
@@ -703,6 +720,12 @@ protected:
   std::unique_ptr<uint8_t[]> ipm_ws_mem_ = nullptr;
 
   std::unique_ptr<double[]> opt_x_mem_ = nullptr;
+
+  // Dimension tracking for incremental updates and initialization check
+  bool initialized_ = false;
+  int dim_var_ = 0;
+  int dim_eq_ = 0;
+  int dim_ineq_ = 0;
   struct HpipmParameters
   {
     int max_iter = 10;  // Maximum number of iterations
@@ -716,12 +739,11 @@ protected:
     int split_step = 0;
   };
   HpipmParameters hpipm_params_;
-  double solve_time_us_ = 0;     // [us] Pure solve time
+  double solve_time_us_ = 0;  // [us] Pure solve time
 
   std::shared_ptr<tam::pmg::ParamValueManager> param_manager_ =
     std::make_shared<tam::pmg::ParamValueManager>();
-  std::shared_ptr<tam::tsl::ValueLogger> logger_ = 
-    std::make_shared<tam::tsl::ValueLogger>();
+  std::shared_ptr<tam::tsl::ValueLogger> logger_ = std::make_shared<tam::tsl::ValueLogger>();
   std::size_t previous_param_state_hash_ = 0;
 };
 #endif
@@ -747,8 +769,10 @@ public:
     int dim_var, int dim_eq, int dim_ineq, Eigen::Ref<Eigen::MatrixXd> Q,
     const Eigen::Ref<const Eigen::VectorXd> & c, const Eigen::Ref<const Eigen::MatrixXd> & A,
     const Eigen::Ref<const Eigen::VectorXd> & b, const Eigen::Ref<const Eigen::MatrixXd> & C,
-    const Eigen::Ref<const Eigen::VectorXd> & d_lower, const Eigen::Ref<const Eigen::VectorXd> & d_upper,
-    const Eigen::Ref<const Eigen::VectorXd> & x_min, const Eigen::Ref<const Eigen::VectorXd> & x_max) override;
+    const Eigen::Ref<const Eigen::VectorXd> & d_lower,
+    const Eigen::Ref<const Eigen::VectorXd> & d_upper,
+    const Eigen::Ref<const Eigen::VectorXd> & x_min,
+    const Eigen::Ref<const Eigen::VectorXd> & x_max) override;
   /** \brief Get parameter manager interface. */
   std::shared_ptr<tam::pmg::ParamValueManager> getParamHandler() const override
   {
@@ -765,6 +789,8 @@ public:
   bool updateInequalityVectorBothSide(
     const Eigen::Ref<const Eigen::VectorXd> & d_lower,
     const Eigen::Ref<const Eigen::VectorXd> & d_upper) override;
+  bool updateEqualityMatrix(const Eigen::Ref<const Eigen::MatrixXd> & A) override;
+  bool updateEqualityVector(const Eigen::Ref<const Eigen::VectorXd> & b) override;
   Eigen::VectorXd solveIncremental() override;
 
 protected:
@@ -782,12 +808,16 @@ protected:
     bool check_duality_gap = false;  // Whether to check duality gap at the end of the solve
   };
   ProxqpParameters proxqp_params_;
-  double solve_time_us_ = 0;     // [us] Pure solve time
+  double solve_time_us_ = 0;  // [us] Pure solve time
+
+  // Dimension tracking for incremental updates
+  int dim_var_ = 0;
+  int dim_eq_ = 0;
+  int dim_ineq_ = 0;
 
   std::shared_ptr<tam::pmg::ParamValueManager> param_manager_ =
     std::make_shared<tam::pmg::ParamValueManager>();
-  std::shared_ptr<tam::tsl::ValueLogger> logger_ = 
-    std::make_shared<tam::tsl::ValueLogger>();
+  std::shared_ptr<tam::tsl::ValueLogger> logger_ = std::make_shared<tam::tsl::ValueLogger>();
   std::size_t previous_param_state_hash_ = 0;
 };
 #endif

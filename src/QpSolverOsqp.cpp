@@ -89,14 +89,19 @@ Eigen::VectorXd QpSolverOsqp::solve(
   if (param_manager_->get_state_hash() != previous_param_state_hash_) {
     declare_and_update_parameters();
   }
+
   int dim_eq_ineq_with_bound = dim_eq + dim_ineq + dim_var;
   Eigen::MatrixXd AC_with_bound(dim_eq_ineq_with_bound, dim_var);
   Eigen::VectorXd bd_with_bound_min(dim_eq_ineq_with_bound);
   Eigen::VectorXd bd_with_bound_max(dim_eq_ineq_with_bound);
   Eigen::MatrixXd I = Eigen::MatrixXd::Identity(dim_var, dim_var);
-  AC_with_bound << A, C, I;
-  bd_with_bound_min << b,
-    Eigen::VectorXd::Constant(dim_ineq, -1 * std::numeric_limits<double>::infinity()), x_min;
+
+  // Correctly stack matrices row-wise (vertical), NOT column-wise
+  AC_with_bound.topRows(dim_eq) = A;
+  AC_with_bound.middleRows(dim_eq, dim_ineq) = C;
+  AC_with_bound.bottomRows(dim_var) = I;
+
+  bd_with_bound_min << b, Eigen::VectorXd::Constant(dim_ineq, -1e30), x_min;
   bd_with_bound_max << b, d, x_max;
 
   auto sparse_start_time = clock::now();
@@ -124,6 +129,12 @@ Eigen::VectorXd QpSolverOsqp::solve(
   // osqp_->settings()->setTimeLimit(osqp_params_.time_limit);
   osqp_->settings()->setCheckTermination(osqp_params_.check_termination);
   osqp_->settings()->setWarmStart(true);
+
+  // Store dimensions for incremental updates
+  dim_var_ = dim_var;
+  dim_eq_ = dim_eq;
+  dim_ineq_ = dim_ineq;
+
   if (
     !solve_failed_ && !force_initialize_ && osqp_->isInitialized() &&
     dim_var == osqp_->data()->getData()->n &&
@@ -154,17 +165,34 @@ Eigen::VectorXd QpSolverOsqp::solve(
   auto solve_start_time = clock::now();
   auto status = osqp_->solveProblem();
   auto solve_end_time = clock::now();
-  solve_time_us_ = std::chrono::duration_cast<std::chrono::microseconds>(
-                     solve_end_time - solve_start_time)
-                     .count();
+  solve_time_us_ =
+    std::chrono::duration_cast<std::chrono::microseconds>(solve_end_time - solve_start_time)
+      .count();
 
-  // Log solver time for performance analysis
+  // Get solver status and diagnostics
+  auto solver_status = osqp_->getStatus();
+
+  // Log solver time and diagnostics for performance analysis
   if (logger_) {
     logger_->log("solver_time_pure", solve_time_us_);
   }
 
+  // Check solver status
   if (status == OsqpEigen::ErrorExitFlag::NoError) {
-    solve_failed_ = false;
+    if (
+      solver_status == OsqpEigen::Status::Solved ||
+      solver_status == OsqpEigen::Status::SolvedInaccurate) {
+      solve_failed_ = false;
+      if (solver_status == OsqpEigen::Status::SolvedInaccurate) {
+        QSC_WARN_STREAM("[QpSolverOsqp::solve] Solved with reduced accuracy");
+      }
+    } else if (solver_status == OsqpEigen::Status::MaxIterReached) {
+      solve_failed_ = true;
+      QSC_WARN_STREAM("[QpSolverOsqp::solve] MAX_ITER reached without convergence");
+    } else {
+      solve_failed_ = true;
+      QSC_WARN_STREAM("[QpSolverOsqp::solve] Solver status: " << static_cast<int>(solver_status));
+    }
   } else {
     solve_failed_ = true;
     QSC_WARN_STREAM("[QpSolverOsqp::solve] Failed to solve: " << to_string(status));
@@ -172,26 +200,30 @@ Eigen::VectorXd QpSolverOsqp::solve(
 
   return osqp_->getSolution();
 }
-
 Eigen::VectorXd QpSolverOsqp::solve(
   int dim_var, int dim_eq, int dim_ineq, Eigen::Ref<Eigen::MatrixXd> Q,
   const Eigen::Ref<const Eigen::VectorXd> & c, const Eigen::Ref<const Eigen::MatrixXd> & A,
   const Eigen::Ref<const Eigen::VectorXd> & b, const Eigen::Ref<const Eigen::MatrixXd> & C,
-  const Eigen::Ref<const Eigen::VectorXd> & d_lower, const Eigen::Ref<const Eigen::VectorXd> & d_upper,
+  const Eigen::Ref<const Eigen::VectorXd> & d_lower,
+  const Eigen::Ref<const Eigen::VectorXd> & d_upper,
   const Eigen::Ref<const Eigen::VectorXd> & x_min, const Eigen::Ref<const Eigen::VectorXd> & x_max)
 {
   // Check if parameters have changed and update if necessary
   if (param_manager_->get_state_hash() != previous_param_state_hash_) {
     declare_and_update_parameters();
   }
-  
+
   int dim_eq_ineq_with_bound = dim_eq + dim_ineq + dim_var;
   Eigen::MatrixXd AC_with_bound(dim_eq_ineq_with_bound, dim_var);
   Eigen::VectorXd bd_with_bound_min(dim_eq_ineq_with_bound);
   Eigen::VectorXd bd_with_bound_max(dim_eq_ineq_with_bound);
   Eigen::MatrixXd I = Eigen::MatrixXd::Identity(dim_var, dim_var);
-  AC_with_bound << A, C, I;
-  
+
+  // Correctly stack matrices row-wise (vertical), NOT column-wise
+  AC_with_bound.topRows(dim_eq) = A;
+  AC_with_bound.middleRows(dim_eq, dim_ineq) = C;
+  AC_with_bound.bottomRows(dim_var) = I;
+
   // Use bilateral constraints: d_lower <= Cx <= d_upper
   bd_with_bound_min << b, d_lower, x_min;
   bd_with_bound_max << b, d_upper, x_max;
@@ -219,7 +251,12 @@ Eigen::VectorXd QpSolverOsqp::solve(
   osqp_->settings()->setPolish(osqp_params_.polish);
   osqp_->settings()->setCheckTermination(osqp_params_.check_termination);
   osqp_->settings()->setWarmStart(true);
-  
+
+  // Store dimensions for incremental updates
+  dim_var_ = dim_var;
+  dim_eq_ = dim_eq;
+  dim_ineq_ = dim_ineq;
+
   if (
     !solve_failed_ && !force_initialize_ && osqp_->isInitialized() &&
     dim_var == osqp_->data()->getData()->n &&
@@ -250,20 +287,38 @@ Eigen::VectorXd QpSolverOsqp::solve(
   auto solve_start_time = clock::now();
   auto status = osqp_->solveProblem();
   auto solve_end_time = clock::now();
-  solve_time_us_ = std::chrono::duration_cast<std::chrono::microseconds>(
-                     solve_end_time - solve_start_time)
-                     .count();
+  solve_time_us_ =
+    std::chrono::duration_cast<std::chrono::microseconds>(solve_end_time - solve_start_time)
+      .count();
 
-  // Log solver time for performance analysis
+  // Get solver status and diagnostics
+  auto solver_status = osqp_->getStatus();
+
+  // Log solver time and diagnostics for performance analysis
   if (logger_) {
     logger_->log("solver_time_pure", solve_time_us_);
   }
 
+  // Check solver status
   if (status == OsqpEigen::ErrorExitFlag::NoError) {
-    solve_failed_ = false;
+    if (
+      solver_status == OsqpEigen::Status::Solved ||
+      solver_status == OsqpEigen::Status::SolvedInaccurate) {
+      solve_failed_ = false;
+      if (solver_status == OsqpEigen::Status::SolvedInaccurate) {
+        QSC_WARN_STREAM("[QpSolverOsqp::solve bilateral] Solved with reduced accuracy");
+      }
+    } else if (solver_status == OsqpEigen::Status::MaxIterReached) {
+      solve_failed_ = true;
+      QSC_WARN_STREAM("[QpSolverOsqp::solve bilateral] MAX_ITER reached without convergence");
+    } else {
+      solve_failed_ = true;
+      QSC_WARN_STREAM(
+        "[QpSolverOsqp::solve bilateral] Solver status: " << static_cast<int>(solver_status));
+    }
   } else {
     solve_failed_ = true;
-    QSC_WARN_STREAM("[QpSolverOsqp::solve] Failed to solve: " << to_string(status));
+    QSC_WARN_STREAM("[QpSolverOsqp::solve bilateral] Failed to solve: " << to_string(status));
   }
 
   return osqp_->getSolution();
@@ -271,37 +326,98 @@ Eigen::VectorXd QpSolverOsqp::solve(
 // ===== INCREMENTAL UPDATE IMPLEMENTATION =====
 bool QpSolverOsqp::updateObjectiveMatrix(Eigen::Ref<Eigen::MatrixXd> Q)
 {
-  // Convert to sparse and update
+  if (!osqp_ || !osqp_->isInitialized()) {
+    QSC_ERROR_STREAM(
+      "[QpSolverOsqp::updateObjectiveMatrix] Solver not initialized. Call solve() first.");
+    return false;
+  }
+
+  if (Q.rows() != dim_var_ || Q.cols() != dim_var_) {
+    QSC_ERROR_STREAM("[QpSolverOsqp::updateObjectiveMatrix] Dimension mismatch");
+    return false;
+  }
+
+  // Symmetrize Q matrix for numerical stability
+  Q = 0.5 * (Q + Q.transpose());
+
   Q_sparse_ = Q.sparseView();
   osqp_->updateHessianMatrix(Q_sparse_);
   return true;
 }
 bool QpSolverOsqp::updateObjectiveVector(const Eigen::Ref<const Eigen::VectorXd> & c)
 {
-  // Update gradient vector
+  if (!osqp_ || !osqp_->isInitialized()) {
+    QSC_ERROR_STREAM(
+      "[QpSolverOsqp::updateObjectiveVector] Solver not initialized. Call solve() first.");
+    return false;
+  }
+
+  if (c.size() != dim_var_) {
+    QSC_ERROR_STREAM("[QpSolverOsqp::updateObjectiveVector] Dimension mismatch");
+    return false;
+  }
+
   c_ = c;
   osqp_->updateGradient(c_);
   return true;
 }
 bool QpSolverOsqp::updateInequalityMatrix(const Eigen::Ref<const Eigen::MatrixXd> & C)
 {
-  int dim_var = C.cols();
-  int dim_ineq = C.rows();
-  int dim_eq_ineq_with_bound = dim_ineq + dim_var;
+  if (!osqp_ || !osqp_->isInitialized()) {
+    QSC_ERROR_STREAM(
+      "[QpSolverOsqp::updateInequalityMatrix] Solver not initialized. Call solve() first.");
+    return false;
+  }
 
-  Eigen::MatrixXd AC_with_bound(dim_eq_ineq_with_bound, dim_var);
-  Eigen::MatrixXd I = Eigen::MatrixXd::Identity(dim_var, dim_var);
-  AC_with_bound << C, I;
+  if (C.rows() != dim_ineq_ || C.cols() != dim_var_) {
+    QSC_ERROR_STREAM("[QpSolverOsqp::updateInequalityMatrix] Dimension mismatch");
+    return false;
+  }
+
+  QSC_WARN_STREAM(
+    "[QpSolverOsqp::updateInequalityMatrix] Warning: Cannot preserve equality constraints. Use "
+    "full solve() for safety.");
+
+  // Rebuild full constraint matrix: [A; C; I]
+  int total_constraints = dim_eq_ + dim_ineq_ + dim_var_;
+  Eigen::MatrixXd AC_with_bound(total_constraints, dim_var_);
+  Eigen::MatrixXd I = Eigen::MatrixXd::Identity(dim_var_, dim_var_);
+
+  // Extract current equality constraints from existing matrix (if available)
+  if (dim_eq_ > 0) {
+    Eigen::MatrixXd AC_current = AC_with_bound_sparse_;
+    AC_with_bound.topRows(dim_eq_) = AC_current.topRows(dim_eq_);
+  }
+
+  // Set new inequality constraints
+  AC_with_bound.middleRows(dim_eq_, dim_ineq_) = C;
+
+  // Set variable bounds (identity matrix)
+  AC_with_bound.bottomRows(dim_var_) = I;
+
   AC_with_bound_sparse_ = AC_with_bound.sparseView();
   osqp_->updateLinearConstraintsMatrix(AC_with_bound_sparse_);
   return true;
 }
 bool QpSolverOsqp::updateInequalityVector(const Eigen::Ref<const Eigen::VectorXd> & d)
 {
-  int dim_ineq = d.size();
+  if (!osqp_ || !osqp_->isInitialized()) {
+    QSC_ERROR_STREAM(
+      "[QpSolverOsqp::updateInequalityVector] Solver not initialized. Call solve() first.");
+    return false;
+  }
 
-  // Update only inequality bounds (no equality constraints)
-  bd_with_bound_max_.head(dim_ineq) = d;
+  if (d.size() != dim_ineq_) {
+    QSC_ERROR_STREAM("[QpSolverOsqp::updateInequalityVector] Dimension mismatch");
+    return false;
+  }
+
+  // Update inequality bounds using correct offset: [b; d; x_max]
+  // Inequality constraints start at offset dim_eq_
+  bd_with_bound_max_.segment(dim_eq_, dim_ineq_) = d;
+
+  // Lower bounds for inequality constraints remain -1e30
+  bd_with_bound_min_.segment(dim_eq_, dim_ineq_) = Eigen::VectorXd::Constant(dim_ineq_, -1e30);
 
   osqp_->updateBounds(bd_with_bound_min_, bd_with_bound_max_);
   return true;
@@ -310,32 +426,116 @@ bool QpSolverOsqp::updateInequalityVectorBothSide(
   const Eigen::Ref<const Eigen::VectorXd> & d_lower,
   const Eigen::Ref<const Eigen::VectorXd> & d_upper)
 {
-  int dim_ineq = d_lower.size();
-  // Update both lower and upper bounds for inequality constraints
-  bd_with_bound_min_.head(dim_ineq) = d_lower;
-  bd_with_bound_max_.head(dim_ineq) = d_upper;
+  if (!osqp_ || !osqp_->isInitialized()) {
+    QSC_ERROR_STREAM(
+      "[QpSolverOsqp::updateInequalityVectorBothSide] Solver not initialized. Call solve() first.");
+    return false;
+  }
+
+  if (d_lower.size() != dim_ineq_ || d_upper.size() != dim_ineq_) {
+    QSC_ERROR_STREAM("[QpSolverOsqp::updateInequalityVectorBothSide] Dimension mismatch");
+    return false;
+  }
+
+  // Update inequality bounds using correct offset: [b; d_lower/d_upper; x_min/x_max]
+  // Inequality constraints start at offset dim_eq_
+  bd_with_bound_min_.segment(dim_eq_, dim_ineq_) = d_lower;
+  bd_with_bound_max_.segment(dim_eq_, dim_ineq_) = d_upper;
 
   osqp_->updateBounds(bd_with_bound_min_, bd_with_bound_max_);
   return true;
 }
+bool QpSolverOsqp::updateEqualityMatrix(const Eigen::Ref<const Eigen::MatrixXd> & A)
+{
+  if (!osqp_ || !osqp_->isInitialized()) {
+    QSC_ERROR_STREAM(
+      "[QpSolverOsqp::updateEqualityMatrix] Solver not initialized. Call solve() first.");
+    return false;
+  }
+
+  if (A.rows() != dim_eq_ || A.cols() != dim_var_) {
+    QSC_ERROR_STREAM("[QpSolverOsqp::updateEqualityMatrix] Dimension mismatch");
+    return false;
+  }
+
+  QSC_WARN_STREAM(
+    "[QpSolverOsqp::updateEqualityMatrix] Warning: Cannot preserve inequality constraints. Use "
+    "full solve() for safety.");
+
+  // Rebuild full constraint matrix: [A; C; I]
+  int total_constraints = dim_eq_ + dim_ineq_ + dim_var_;
+  Eigen::MatrixXd AC_with_bound(total_constraints, dim_var_);
+  Eigen::MatrixXd I = Eigen::MatrixXd::Identity(dim_var_, dim_var_);
+
+  // Set new equality constraints at the top
+  AC_with_bound.topRows(dim_eq_) = A;
+
+  // Extract existing inequality constraints and variable bounds
+  if (dim_ineq_ > 0 || dim_var_ > 0) {
+    Eigen::MatrixXd AC_current = AC_with_bound_sparse_;
+    // Copy inequality constraints
+    if (dim_ineq_ > 0) {
+      AC_with_bound.middleRows(dim_eq_, dim_ineq_) = AC_current.middleRows(dim_eq_, dim_ineq_);
+    }
+    // Set variable bounds (identity matrix)
+    AC_with_bound.bottomRows(dim_var_) = I;
+  }
+
+  AC_with_bound_sparse_ = AC_with_bound.sparseView();
+  osqp_->updateLinearConstraintsMatrix(AC_with_bound_sparse_);
+
+  return true;
+}
+bool QpSolverOsqp::updateEqualityVector(const Eigen::Ref<const Eigen::VectorXd> & b)
+{
+  if (!osqp_ || !osqp_->isInitialized()) {
+    QSC_ERROR_STREAM(
+      "[QpSolverOsqp::updateEqualityVector] Solver not initialized. Call solve() first.");
+    return false;
+  }
+
+  if (b.size() != dim_eq_) {
+    QSC_ERROR_STREAM("[QpSolverOsqp::updateEqualityVector] Dimension mismatch");
+    return false;
+  }
+
+  // Update equality constraint bounds: [b; d; x_min/x_max]
+  // Equality constraints are at the beginning (offset 0)
+  bd_with_bound_min_.head(dim_eq_) = b;
+  bd_with_bound_max_.head(dim_eq_) = b;
+
+  osqp_->updateBounds(bd_with_bound_min_, bd_with_bound_max_);
+
+  return true;
+}
 Eigen::VectorXd QpSolverOsqp::solveIncremental()
 {
+  if (!osqp_ || !osqp_->isInitialized()) {
+    QSC_ERROR_STREAM(
+      "[QpSolverOsqp::solveIncremental] Solver not initialized. Call solve() first.");
+    return Eigen::VectorXd::Zero(0);
+  }
+
   auto solve_start_time = clock::now();
   auto status = osqp_->solveProblem();
   auto solve_end_time = clock::now();
-  solve_time_us_ = std::chrono::duration_cast<std::chrono::microseconds>(
-                     solve_end_time - solve_start_time)
-                     .count();
+  solve_time_us_ =
+    std::chrono::duration_cast<std::chrono::microseconds>(solve_end_time - solve_start_time)
+      .count();
 
-  QSC_INFO_STREAM("[OSQP_SOLVER_TIME] Pure incremental solve time: " << solve_time_us_ << " us");
+  // Log solver time for performance analysis
+  if (logger_) {
+    logger_->log("solver_time_pure", solve_time_us_);
+  }
 
+  // Check solver status
   if (status == OsqpEigen::ErrorExitFlag::NoError) {
     solve_failed_ = false;
     return osqp_->getSolution();
   } else {
     solve_failed_ = true;
     QSC_WARN_STREAM("[QpSolverOsqp::solveIncremental] Failed to solve: " << to_string(status));
-    return Eigen::VectorXd::Zero(osqp_->data()->getData()->n);
+    return Eigen::VectorXd::Zero(dim_var_);
   }
 }
 namespace QpSolverCollection
