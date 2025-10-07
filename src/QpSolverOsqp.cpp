@@ -337,9 +337,6 @@ bool QpSolverOsqp::updateObjectiveMatrix(Eigen::Ref<Eigen::MatrixXd> Q)
     return false;
   }
 
-  // Symmetrize Q matrix for numerical stability
-  Q = 0.5 * (Q + Q.transpose());
-
   Q_sparse_ = Q.sparseView();
   osqp_->updateHessianMatrix(Q_sparse_);
   return true;
