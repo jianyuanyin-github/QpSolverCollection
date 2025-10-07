@@ -371,10 +371,6 @@ bool QpSolverOsqp::updateInequalityMatrix(const Eigen::Ref<const Eigen::MatrixXd
     return false;
   }
 
-  QSC_WARN_STREAM(
-    "[QpSolverOsqp::updateInequalityMatrix] Warning: Cannot preserve equality constraints. Use "
-    "full solve() for safety.");
-
   // Rebuild full constraint matrix: [A; C; I]
   int total_constraints = dim_eq_ + dim_ineq_ + dim_var_;
   Eigen::MatrixXd AC_with_bound(total_constraints, dim_var_);
@@ -382,7 +378,8 @@ bool QpSolverOsqp::updateInequalityMatrix(const Eigen::Ref<const Eigen::MatrixXd
 
   // Extract current equality constraints from existing matrix (if available)
   if (dim_eq_ > 0) {
-    Eigen::MatrixXd AC_current = AC_with_bound_sparse_;
+    // Convert sparse to dense properly
+    Eigen::MatrixXd AC_current(AC_with_bound_sparse_);
     AC_with_bound.topRows(dim_eq_) = AC_current.topRows(dim_eq_);
   }
 
@@ -455,10 +452,6 @@ bool QpSolverOsqp::updateEqualityMatrix(const Eigen::Ref<const Eigen::MatrixXd> 
     return false;
   }
 
-  QSC_WARN_STREAM(
-    "[QpSolverOsqp::updateEqualityMatrix] Warning: Cannot preserve inequality constraints. Use "
-    "full solve() for safety.");
-
   // Rebuild full constraint matrix: [A; C; I]
   int total_constraints = dim_eq_ + dim_ineq_ + dim_var_;
   Eigen::MatrixXd AC_with_bound(total_constraints, dim_var_);
@@ -469,7 +462,8 @@ bool QpSolverOsqp::updateEqualityMatrix(const Eigen::Ref<const Eigen::MatrixXd> 
 
   // Extract existing inequality constraints and variable bounds
   if (dim_ineq_ > 0 || dim_var_ > 0) {
-    Eigen::MatrixXd AC_current = AC_with_bound_sparse_;
+    // Convert sparse to dense properly
+    Eigen::MatrixXd AC_current(AC_with_bound_sparse_);
     // Copy inequality constraints
     if (dim_ineq_ > 0) {
       AC_with_bound.middleRows(dim_eq_, dim_ineq_) = AC_current.middleRows(dim_eq_, dim_ineq_);
