@@ -58,7 +58,10 @@ Eigen::VectorXd QpSolverNasoq::solve(int dim_var,
   Eigen::MatrixXd C_with_bound(dim_ineq_with_bound, dim_var);
   Eigen::VectorXd d_with_bound(dim_ineq_with_bound);
   Eigen::MatrixXd I = Eigen::MatrixXd::Identity(dim_var, dim_var);
-  C_with_bound << C, I, -I;
+  // Vertically stack C, I, -I to incorporate box constraints
+  C_with_bound.topRows(dim_ineq) = C;
+  C_with_bound.middleRows(dim_ineq, dim_var) = I;
+  C_with_bound.bottomRows(dim_var) = -I;
   d_with_bound << d, x_max, -x_min;
 
   auto sparse_start_time = clock::now();

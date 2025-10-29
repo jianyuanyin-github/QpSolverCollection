@@ -481,9 +481,11 @@ protected:
     double termination_tolerance = 1e-2;
     double bound_tolerance = 1e-4;
     bool enable_cholesky_refactorisation = true;
-    bool enable_regularisation = false;
+    bool enable_regularisation = true;
     bool use_warm_start = true;
     int num_refinement_steps = 1;
+    double eps_regularisation = 1e-6;  // Scaling factor for Hessian regularisation
+    int num_regularisation_steps = 0;  // Maximum number of successive regularisation steps (0=automatic)
   };
   QpoasesParameters qpoases_params_;
   double solve_time_us_ = 0;  // [us] Pure solve time

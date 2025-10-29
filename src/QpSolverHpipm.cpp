@@ -26,8 +26,10 @@ void QpSolverHpipm::declare_and_update_parameters()
 {
   hpipm_params_.max_iter =
     param_manager_
-      ->declare_and_get_value("MPC.Solver_HPIPM.max_iter", 10, tam::pmg::ParameterType::INTEGER, "")
+      ->declare_and_get_value(
+        "MPC.Solver_HPIPM.max_iter", 800, tam::pmg::ParameterType::INTEGER, "")
       .as_int();
+  std::cout << "max_iter: " << hpipm_params_.max_iter << std::endl;
   hpipm_params_.tol_stat =
     param_manager_
       ->declare_and_get_value(
@@ -76,8 +78,10 @@ Eigen::VectorXd QpSolverHpipm::solve(
   const Eigen::Ref<const Eigen::VectorXd> & x_max)
 {
   // Check if parameters have changed and update if necessary
+  bool params_changed = false;
   if (param_manager_->get_state_hash() != previous_param_state_hash_) {
     declare_and_update_parameters();
+    params_changed = true;
   }
 
   // Allocate memory only if dimensions changed or not yet initialized
@@ -121,6 +125,17 @@ Eigen::VectorXd QpSolverHpipm::solve(
     d_dense_qp_ipm_ws_create(qp_dim_.get(), ipm_arg_.get(), ipm_ws_.get(), ipm_ws_mem_.get());
 
     opt_x_mem_ = std::make_unique<double[]>(dim_var);  // Automatic memory management for the array
+  } else if (params_changed && initialized_) {
+    // Parameters changed but dimensions didn't - update ipm_arg_ with new parameters
+    d_dense_qp_ipm_arg_set_iter_max(&hpipm_params_.max_iter, ipm_arg_.get());
+    d_dense_qp_ipm_arg_set_tol_stat(&hpipm_params_.tol_stat, ipm_arg_.get());
+    d_dense_qp_ipm_arg_set_tol_eq(&hpipm_params_.tol_eq, ipm_arg_.get());
+    d_dense_qp_ipm_arg_set_tol_ineq(&hpipm_params_.tol_ineq, ipm_arg_.get());
+    d_dense_qp_ipm_arg_set_tol_comp(&hpipm_params_.tol_comp, ipm_arg_.get());
+    d_dense_qp_ipm_arg_set_warm_start(&hpipm_params_.warm_start, ipm_arg_.get());
+    d_dense_qp_ipm_arg_set_pred_corr(&hpipm_params_.pred_corr, ipm_arg_.get());
+    d_dense_qp_ipm_arg_set_cond_pred_corr(&hpipm_params_.cond_pred_corr, ipm_arg_.get());
+    d_dense_qp_ipm_arg_set_split_step(&hpipm_params_.split_step, ipm_arg_.get());
   }
 
   // Set QP coefficients
@@ -198,8 +213,10 @@ Eigen::VectorXd QpSolverHpipm::solve(
   const Eigen::Ref<const Eigen::VectorXd> & x_min, const Eigen::Ref<const Eigen::VectorXd> & x_max)
 {
   // Check if parameters have changed and update if necessary
+  bool params_changed = false;
   if (param_manager_->get_state_hash() != previous_param_state_hash_) {
     declare_and_update_parameters();
+    params_changed = true;
   }
 
   // Allocate memory only if dimensions changed or not yet initialized
@@ -243,6 +260,17 @@ Eigen::VectorXd QpSolverHpipm::solve(
     d_dense_qp_ipm_ws_create(qp_dim_.get(), ipm_arg_.get(), ipm_ws_.get(), ipm_ws_mem_.get());
 
     opt_x_mem_ = std::make_unique<double[]>(dim_var);  // Automatic memory management for the array
+  } else if (params_changed && initialized_) {
+    // Parameters changed but dimensions didn't - update ipm_arg_ with new parameters
+    d_dense_qp_ipm_arg_set_iter_max(&hpipm_params_.max_iter, ipm_arg_.get());
+    d_dense_qp_ipm_arg_set_tol_stat(&hpipm_params_.tol_stat, ipm_arg_.get());
+    d_dense_qp_ipm_arg_set_tol_eq(&hpipm_params_.tol_eq, ipm_arg_.get());
+    d_dense_qp_ipm_arg_set_tol_ineq(&hpipm_params_.tol_ineq, ipm_arg_.get());
+    d_dense_qp_ipm_arg_set_tol_comp(&hpipm_params_.tol_comp, ipm_arg_.get());
+    d_dense_qp_ipm_arg_set_warm_start(&hpipm_params_.warm_start, ipm_arg_.get());
+    d_dense_qp_ipm_arg_set_pred_corr(&hpipm_params_.pred_corr, ipm_arg_.get());
+    d_dense_qp_ipm_arg_set_cond_pred_corr(&hpipm_params_.cond_pred_corr, ipm_arg_.get());
+    d_dense_qp_ipm_arg_set_split_step(&hpipm_params_.split_step, ipm_arg_.get());
   }
 
   // Set QP coefficients

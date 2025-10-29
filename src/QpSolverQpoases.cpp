@@ -36,14 +36,15 @@ void QpSolverQpoases::declare_and_update_parameters()
   qpoases_params_.enable_cholesky_refactorisation =
     param_manager_
       ->declare_and_get_value(
-        "MPC.Solver_qpOASES.enable_cholesky_refactorisation", true, tam::pmg::ParameterType::BOOL,
+        "MPC.Solver_qpOASES.enable_cholesky_refactorisation", false, tam::pmg::ParameterType::BOOL,
         "")
       .as_bool();
   qpoases_params_.enable_regularisation =
     param_manager_
       ->declare_and_get_value(
-        "MPC.Solver_qpOASES.enable_regularisation", false, tam::pmg::ParameterType::BOOL, "")
+        "MPC.Solver_qpOASES.enable_regularisation", true, tam::pmg::ParameterType::BOOL, "")
       .as_bool();
+  std::cout << "enable_regularisation: " << qpoases_params_.enable_regularisation << std::endl;
   qpoases_params_.use_warm_start =
     param_manager_
       ->declare_and_get_value(
@@ -72,14 +73,16 @@ Eigen::VectorXd QpSolverQpoases::solve(
     dim_eq + dim_ineq, dim_var);
   Eigen::VectorXd bd_min(dim_eq + dim_ineq);
   Eigen::VectorXd bd_max(dim_eq + dim_ineq);
-  AC_row_major << A, C;
+  // Vertically stack A and C
+  AC_row_major.topRows(dim_eq) = A;
+  AC_row_major.bottomRows(dim_ineq) = C;
   bd_min << b, Eigen::VectorXd::Constant(dim_ineq, -1 * std::numeric_limits<double>::infinity());
   bd_max << b, d;
   n_wsr_ = qpoases_params_.max_iter;
   qpOASES::returnValue status = qpOASES::TERMINAL_LIST_ELEMENT;
   if (
-    !solve_failed_ && !force_initialize_ && qpoases_ && qpoases_->getNV() == dim_var &&
-    qpoases_->getNC() == dim_eq + dim_ineq) {
+    qpoases_params_.use_warm_start && !solve_failed_ && !force_initialize_ && qpoases_ &&
+    qpoases_->getNV() == dim_var && qpoases_->getNC() == dim_eq + dim_ineq) {
     auto solve_start_time = clock::now();
     status = qpoases_->hotstart(
       // Since Q is a symmetric matrix, row/column-majors are interchangeable
@@ -95,7 +98,7 @@ Eigen::VectorXd QpSolverQpoases::solve(
     qpoases_->setPrintLevel(qpOASES::PL_LOW);
 
     qpOASES::Options options;
-
+    options.setToMPC();
     options.terminationTolerance = qpoases_params_.termination_tolerance;
     options.boundTolerance = qpoases_params_.bound_tolerance;
     options.enableCholeskyRefactorisation =
@@ -152,15 +155,18 @@ Eigen::VectorXd QpSolverQpoases::solve(
   Eigen::VectorXd bd_min(dim_constraints);
   Eigen::VectorXd bd_max(dim_constraints);
 
-  AC << A, C;
+  // Vertically stack A and C
+  AC.topRows(dim_eq) = A;
+  AC.bottomRows(dim_ineq) = C;
   // Use bilateral constraints: d_lower <= Cx <= d_upper
   bd_min << b, d_lower;
   bd_max << b, d_upper;
 
+  n_wsr_ = qpoases_params_.max_iter;
   qpOASES::returnValue status = qpOASES::TERMINAL_LIST_ELEMENT;
   if (
-    !solve_failed_ && !force_initialize_ && qpoases_ && qpoases_->getNV() == dim_var &&
-    qpoases_->getNC() == dim_constraints) {
+    qpoases_params_.use_warm_start && !solve_failed_ && !force_initialize_ && qpoases_ &&
+    qpoases_->getNV() == dim_var && qpoases_->getNC() == dim_constraints) {
     // Hot start
     auto solve_start_time = clock::now();
     status = qpoases_->hotstart(
@@ -173,6 +179,7 @@ Eigen::VectorXd QpSolverQpoases::solve(
   } else {
     // Cold start
     qpoases_ = std::make_unique<qpOASES::SQProblem>(dim_var, dim_constraints);
+    qpoases_->setPrintLevel(qpOASES::PL_LOW);
 
     // Set options
     qpOASES::Options options;
