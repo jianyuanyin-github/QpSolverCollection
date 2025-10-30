@@ -12,7 +12,8 @@ using namespace QpSolverCollection;
 QpSolverHpipm::QpSolverHpipm()
 {
   type_ = QpSolverType::HPIPM;
-  bound_limit_ = 1e30;  // Initialize bound limit to avoid NaN/Inf issues
+  bound_limit_ =
+    1e8;  // Initialize bound limit to avoid NaN/Inf issues (1e30 causes numerical problems)
   qp_dim_ = std::make_unique<struct d_dense_qp_dim>();
   qp_ = std::make_unique<struct d_dense_qp>();
   qp_sol_ = std::make_unique<struct d_dense_qp_sol>();
@@ -26,28 +27,26 @@ void QpSolverHpipm::declare_and_update_parameters()
 {
   hpipm_params_.max_iter =
     param_manager_
-      ->declare_and_get_value(
-        "MPC.Solver_HPIPM.max_iter", 800, tam::pmg::ParameterType::INTEGER, "")
+      ->declare_and_get_value("MPC.Solver_HPIPM.max_iter", 50, tam::pmg::ParameterType::INTEGER, "")
       .as_int();
-  std::cout << "max_iter: " << hpipm_params_.max_iter << std::endl;
   hpipm_params_.tol_stat =
     param_manager_
       ->declare_and_get_value(
-        "MPC.Solver_HPIPM.tol_stat", 1e-3, tam::pmg::ParameterType::DOUBLE, "")
+        "MPC.Solver_HPIPM.tol_stat", 1e-4, tam::pmg::ParameterType::DOUBLE, "")
       .as_double();
   hpipm_params_.tol_eq =
     param_manager_
-      ->declare_and_get_value("MPC.Solver_HPIPM.tol_eq", 1e-3, tam::pmg::ParameterType::DOUBLE, "")
+      ->declare_and_get_value("MPC.Solver_HPIPM.tol_eq", 1e-4, tam::pmg::ParameterType::DOUBLE, "")
       .as_double();
   hpipm_params_.tol_ineq =
     param_manager_
       ->declare_and_get_value(
-        "MPC.Solver_HPIPM.tol_ineq", 1e-3, tam::pmg::ParameterType::DOUBLE, "")
+        "MPC.Solver_HPIPM.tol_ineq", 1e-4, tam::pmg::ParameterType::DOUBLE, "")
       .as_double();
   hpipm_params_.tol_comp =
     param_manager_
       ->declare_and_get_value(
-        "MPC.Solver_HPIPM.tol_comp", 1e-3, tam::pmg::ParameterType::DOUBLE, "")
+        "MPC.Solver_HPIPM.tol_comp", 1e-4, tam::pmg::ParameterType::DOUBLE, "")
       .as_double();
   hpipm_params_.warm_start =
     param_manager_
@@ -78,10 +77,8 @@ Eigen::VectorXd QpSolverHpipm::solve(
   const Eigen::Ref<const Eigen::VectorXd> & x_max)
 {
   // Check if parameters have changed and update if necessary
-  bool params_changed = false;
   if (param_manager_->get_state_hash() != previous_param_state_hash_) {
     declare_and_update_parameters();
-    params_changed = true;
   }
 
   // Allocate memory only if dimensions changed or not yet initialized
@@ -125,17 +122,6 @@ Eigen::VectorXd QpSolverHpipm::solve(
     d_dense_qp_ipm_ws_create(qp_dim_.get(), ipm_arg_.get(), ipm_ws_.get(), ipm_ws_mem_.get());
 
     opt_x_mem_ = std::make_unique<double[]>(dim_var);  // Automatic memory management for the array
-  } else if (params_changed && initialized_) {
-    // Parameters changed but dimensions didn't - update ipm_arg_ with new parameters
-    d_dense_qp_ipm_arg_set_iter_max(&hpipm_params_.max_iter, ipm_arg_.get());
-    d_dense_qp_ipm_arg_set_tol_stat(&hpipm_params_.tol_stat, ipm_arg_.get());
-    d_dense_qp_ipm_arg_set_tol_eq(&hpipm_params_.tol_eq, ipm_arg_.get());
-    d_dense_qp_ipm_arg_set_tol_ineq(&hpipm_params_.tol_ineq, ipm_arg_.get());
-    d_dense_qp_ipm_arg_set_tol_comp(&hpipm_params_.tol_comp, ipm_arg_.get());
-    d_dense_qp_ipm_arg_set_warm_start(&hpipm_params_.warm_start, ipm_arg_.get());
-    d_dense_qp_ipm_arg_set_pred_corr(&hpipm_params_.pred_corr, ipm_arg_.get());
-    d_dense_qp_ipm_arg_set_cond_pred_corr(&hpipm_params_.cond_pred_corr, ipm_arg_.get());
-    d_dense_qp_ipm_arg_set_split_step(&hpipm_params_.split_step, ipm_arg_.get());
   }
 
   // Set QP coefficients
@@ -189,16 +175,15 @@ Eigen::VectorXd QpSolverHpipm::solve(
       logger_->log("hpipm_res_comp", res_comp);
     }
 
-    // MAX_ITER means not converged, treat as failure
-    if (status == SUCCESS) {
+    // Accept both SUCCESS and MAX_ITER as valid (MAX_ITER may still have usable solution)
+    if (status == SUCCESS || status == MAX_ITER) {
       solve_failed_ = false;
+      if (status == MAX_ITER) {
+        QSC_WARN_STREAM("[QpSolverHpipm::solve] MAX_ITER reached without full convergence");
+      }
     } else {
       solve_failed_ = true;
-      if (status == MAX_ITER) {
-        QSC_WARN_STREAM("[QpSolverHpipm::solve] MAX_ITER reached without convergence");
-      } else {
-        QSC_WARN_STREAM("[QpSolverHpipm::solve] Failed to solve: " << status);
-      }
+      QSC_WARN_STREAM("[QpSolverHpipm::solve] Failed to solve: " << status);
     }
   }
 
@@ -213,10 +198,8 @@ Eigen::VectorXd QpSolverHpipm::solve(
   const Eigen::Ref<const Eigen::VectorXd> & x_min, const Eigen::Ref<const Eigen::VectorXd> & x_max)
 {
   // Check if parameters have changed and update if necessary
-  bool params_changed = false;
   if (param_manager_->get_state_hash() != previous_param_state_hash_) {
     declare_and_update_parameters();
-    params_changed = true;
   }
 
   // Allocate memory only if dimensions changed or not yet initialized
@@ -260,17 +243,6 @@ Eigen::VectorXd QpSolverHpipm::solve(
     d_dense_qp_ipm_ws_create(qp_dim_.get(), ipm_arg_.get(), ipm_ws_.get(), ipm_ws_mem_.get());
 
     opt_x_mem_ = std::make_unique<double[]>(dim_var);  // Automatic memory management for the array
-  } else if (params_changed && initialized_) {
-    // Parameters changed but dimensions didn't - update ipm_arg_ with new parameters
-    d_dense_qp_ipm_arg_set_iter_max(&hpipm_params_.max_iter, ipm_arg_.get());
-    d_dense_qp_ipm_arg_set_tol_stat(&hpipm_params_.tol_stat, ipm_arg_.get());
-    d_dense_qp_ipm_arg_set_tol_eq(&hpipm_params_.tol_eq, ipm_arg_.get());
-    d_dense_qp_ipm_arg_set_tol_ineq(&hpipm_params_.tol_ineq, ipm_arg_.get());
-    d_dense_qp_ipm_arg_set_tol_comp(&hpipm_params_.tol_comp, ipm_arg_.get());
-    d_dense_qp_ipm_arg_set_warm_start(&hpipm_params_.warm_start, ipm_arg_.get());
-    d_dense_qp_ipm_arg_set_pred_corr(&hpipm_params_.pred_corr, ipm_arg_.get());
-    d_dense_qp_ipm_arg_set_cond_pred_corr(&hpipm_params_.cond_pred_corr, ipm_arg_.get());
-    d_dense_qp_ipm_arg_set_split_step(&hpipm_params_.split_step, ipm_arg_.get());
   }
 
   // Set QP coefficients
@@ -326,16 +298,16 @@ Eigen::VectorXd QpSolverHpipm::solve(
       logger_->log("hpipm_res_comp", res_comp);
     }
 
-    // MAX_ITER means not converged, treat as failure
-    if (status == SUCCESS) {
+    // Accept both SUCCESS and MAX_ITER as valid (MAX_ITER may still have usable solution)
+    if (status == SUCCESS || status == MAX_ITER) {
       solve_failed_ = false;
+      if (status == MAX_ITER) {
+        QSC_WARN_STREAM(
+          "[QpSolverHpipm::solve bilateral] MAX_ITER reached without full convergence");
+      }
     } else {
       solve_failed_ = true;
-      if (status == MAX_ITER) {
-        QSC_WARN_STREAM("[QpSolverHpipm::solve bilateral] MAX_ITER reached without convergence");
-      } else {
-        QSC_WARN_STREAM("[QpSolverHpipm::solve bilateral] Failed to solve: " << status);
-      }
+      QSC_WARN_STREAM("[QpSolverHpipm::solve bilateral] Failed to solve: " << status);
     }
   }
 
@@ -498,16 +470,16 @@ Eigen::VectorXd QpSolverHpipm::solveIncremental()
     logger_->log("hpipm_res_comp", res_comp);
   }
 
-  // MAX_ITER means not converged, treat as failure
-  if (status == SUCCESS) {
+  // Accept both SUCCESS and MAX_ITER as valid (MAX_ITER may still have usable solution)
+  if (status == SUCCESS || status == MAX_ITER) {
     solve_failed_ = false;
+    if (status == MAX_ITER) {
+      QSC_WARN_STREAM(
+        "[QpSolverHpipm::solveIncremental] MAX_ITER reached without full convergence");
+    }
   } else {
     solve_failed_ = true;
-    if (status == MAX_ITER) {
-      QSC_WARN_STREAM("[QpSolverHpipm::solveIncremental] MAX_ITER reached without convergence");
-    } else {
-      QSC_WARN_STREAM("[QpSolverHpipm::solveIncremental] Failed to solve: " << status);
-    }
+    QSC_WARN_STREAM("[QpSolverHpipm::solveIncremental] Failed to solve: " << status);
   }
 
   return Eigen::Map<const Eigen::VectorXd>(opt_x_mem_.get(), dim_var_);

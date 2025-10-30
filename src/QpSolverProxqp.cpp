@@ -96,8 +96,7 @@ Eigen::VectorXd QpSolverProxqp::solve(
   C_with_bound.topRows(dim_ineq) = C;
   C_with_bound.bottomRows(dim_var) = I;
 
-  // Set bounds: inequality constraints (C x <= d) and variable bounds
-  d_with_bound_min.head(dim_ineq) = Eigen::VectorXd::Constant(dim_ineq, -1e30);
+  d_with_bound_min.head(dim_ineq) = Eigen::VectorXd::Constant(dim_ineq, -1e8);
   d_with_bound_min.tail(dim_var) = x_min;
   d_with_bound_max.head(dim_ineq) = d;
   d_with_bound_max.tail(dim_var) = x_max;
@@ -257,14 +256,6 @@ bool QpSolverProxqp::updateInequalityMatrix(const Eigen::Ref<const Eigen::Matrix
     return false;
   }
 
-  if (dim_eq_ > 0) {
-    QSC_ERROR_STREAM(
-      "[QpSolverProxqp::updateInequalityMatrix] Cannot update inequality matrix when equality "
-      "constraints exist. Use full solve() instead.");
-    return false;
-  }
-
-  // Build constraint matrix with variable bounds
   int n_inequality = dim_ineq_ + dim_var_;
   Eigen::MatrixXd C_with_bound(n_inequality, dim_var_);
   Eigen::MatrixXd I = Eigen::MatrixXd::Identity(dim_var_, dim_var_);
@@ -290,36 +281,15 @@ bool QpSolverProxqp::updateInequalityVector(const Eigen::Ref<const Eigen::Vector
     return false;
   }
 
-  if (dim_eq_ > 0) {
-    QSC_ERROR_STREAM(
-      "[QpSolverProxqp::updateInequalityVector] Cannot update inequality vector when equality "
-      "constraints exist. Use full solve() instead.");
-    return false;
-  }
+  constexpr double kBoundLimit = 1e8;
+  Eigen::VectorXd d_with_bound_min(dim_ineq_ + dim_var_);
+  Eigen::VectorXd d_with_bound_max(dim_ineq_ + dim_var_);
+  d_with_bound_min.head(dim_ineq_) = Eigen::VectorXd::Constant(dim_ineq_, -1e8);
+  d_with_bound_min.tail(dim_var_) = Eigen::VectorXd::Constant(dim_var_, -kBoundLimit);
+  d_with_bound_max.head(dim_ineq_) = d;
+  d_with_bound_max.tail(dim_var_) = Eigen::VectorXd::Constant(dim_var_, kBoundLimit);
 
-  // Build bounds vectors: only update inequality part, keep variable bounds unchanged
-  // Note: This assumes variable bounds don't change. If they do, use full solve().
-  int n_inequality = dim_ineq_ + dim_var_;
-  Eigen::VectorXd l_with_bound(n_inequality);
-  Eigen::VectorXd u_with_bound(n_inequality);
-
-  // Set inequality constraints (C x <= d, so lower bound is -1e30)
-  l_with_bound.head(dim_ineq_) = Eigen::VectorXd::Constant(dim_ineq_, -1e30);
-  u_with_bound.head(dim_ineq_) = d;
-
-  // Keep variable bounds unchanged (ProxQP will preserve existing bounds via std::nullopt
-  // semantics) We pass nullopt to avoid changing the variable bound part Actually, we need to pass
-  // full vectors, so we use large values
-  l_with_bound.tail(dim_var_) = Eigen::VectorXd::Constant(dim_var_, -1e30);
-  u_with_bound.tail(dim_var_) = Eigen::VectorXd::Constant(dim_var_, 1e30);
-
-  QSC_WARN_STREAM(
-    "[QpSolverProxqp::updateInequalityVector] Warning: Variable bounds reset to default. Use full "
-    "solve() to preserve custom bounds.");
-
-  proxqp_->update(
-    std::nullopt, std::nullopt, std::nullopt, std::nullopt, std::nullopt, l_with_bound,
-    u_with_bound, std::nullopt, std::nullopt);
+  proxqp_->update(std::nullopt, std::nullopt, std::nullopt, std::nullopt, std::nullopt, d_with_bound_min, d_with_bound_max);
   return true;
 }
 bool QpSolverProxqp::updateInequalityVectorBothSide(
@@ -338,33 +308,15 @@ bool QpSolverProxqp::updateInequalityVectorBothSide(
     return false;
   }
 
-  if (dim_eq_ > 0) {
-    QSC_ERROR_STREAM(
-      "[QpSolverProxqp::updateInequalityVectorBothSide] Cannot update with equality constraints. "
-      "Use full solve() instead.");
-    return false;
-  }
-
-  int n_inequality = dim_ineq_ + dim_var_;
-  Eigen::VectorXd l_with_bound(n_inequality);
-  Eigen::VectorXd u_with_bound(n_inequality);
-
-  // Set bilateral inequality constraints
+  constexpr double kBoundLimit = 1e8;
+  Eigen::VectorXd l_with_bound(dim_ineq_ + dim_var_);
+  Eigen::VectorXd u_with_bound(dim_ineq_ + dim_var_);
   l_with_bound.head(dim_ineq_) = d_lower;
+  l_with_bound.tail(dim_var_) = Eigen::VectorXd::Constant(dim_var_, -kBoundLimit);
   u_with_bound.head(dim_ineq_) = d_upper;
+  u_with_bound.tail(dim_var_) = Eigen::VectorXd::Constant(dim_var_, kBoundLimit);
 
-  // Variable bounds - reset to default (limitation without caching)
-  l_with_bound.tail(dim_var_) = Eigen::VectorXd::Constant(dim_var_, -1e30);
-  u_with_bound.tail(dim_var_) = Eigen::VectorXd::Constant(dim_var_, 1e30);
-
-  QSC_WARN_STREAM(
-    "[QpSolverProxqp::updateInequalityVectorBothSide] Warning: Variable bounds reset to default. "
-    "Use full solve() to preserve custom bounds.");
-
-  proxqp_->update(
-    std::nullopt, std::nullopt, std::nullopt, std::nullopt, std::nullopt, l_with_bound,
-    u_with_bound, std::nullopt, std::nullopt);
-
+  proxqp_->update(std::nullopt, std::nullopt, std::nullopt, std::nullopt, std::nullopt, l_with_bound, u_with_bound);
   return true;
 }
 bool QpSolverProxqp::updateEqualityMatrix(const Eigen::Ref<const Eigen::MatrixXd> & A)

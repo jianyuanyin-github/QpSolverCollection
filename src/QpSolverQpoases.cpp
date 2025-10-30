@@ -44,7 +44,6 @@ void QpSolverQpoases::declare_and_update_parameters()
       ->declare_and_get_value(
         "MPC.Solver_qpOASES.enable_regularisation", true, tam::pmg::ParameterType::BOOL, "")
       .as_bool();
-  std::cout << "enable_regularisation: " << qpoases_params_.enable_regularisation << std::endl;
   qpoases_params_.use_warm_start =
     param_manager_
       ->declare_and_get_value(
@@ -54,6 +53,18 @@ void QpSolverQpoases::declare_and_update_parameters()
     param_manager_
       ->declare_and_get_value(
         "MPC.Solver_qpOASES.num_refinement_steps", 1, tam::pmg::ParameterType::INTEGER, "")
+      .as_int();
+  qpoases_params_.eps_regularisation =
+    param_manager_
+      ->declare_and_get_value(
+        "MPC.Solver_qpOASES.eps_regularisation", 1e-1, tam::pmg::ParameterType::DOUBLE,
+        "Scaling factor for Hessian regularisation (larger = more aggressive)")
+      .as_double();
+  qpoases_params_.num_regularisation_steps =
+    param_manager_
+      ->declare_and_get_value(
+        "MPC.Solver_qpOASES.num_regularisation_steps", 5, tam::pmg::ParameterType::INTEGER,
+        "Maximum number of successive regularisation steps (0=automatic)")
       .as_int();
   previous_param_state_hash_ = param_manager_->get_state_hash();
 }
@@ -106,6 +117,8 @@ Eigen::VectorXd QpSolverQpoases::solve(
     options.enableRegularisation =
       qpoases_params_.enable_regularisation ? qpOASES::BT_TRUE : qpOASES::BT_FALSE;
     options.numRefinementSteps = qpoases_params_.num_refinement_steps;
+    options.epsRegularisation = qpoases_params_.eps_regularisation;
+    options.numRegularisationSteps = qpoases_params_.num_regularisation_steps;
 
     qpoases_->setOptions(options);
 
@@ -191,6 +204,8 @@ Eigen::VectorXd QpSolverQpoases::solve(
     options.enableRegularisation =
       qpoases_params_.enable_regularisation ? qpOASES::BT_TRUE : qpOASES::BT_FALSE;
     options.numRefinementSteps = qpoases_params_.num_refinement_steps;
+    options.epsRegularisation = qpoases_params_.eps_regularisation;
+    options.numRegularisationSteps = qpoases_params_.num_regularisation_steps;
     qpoases_->setOptions(options);
 
     auto solve_start_time = clock::now();

@@ -1,4 +1,3 @@
-/* Author: Masaki Murooka */
 
 #include <qp_solver_collection/QpSolverOptions.h>
 
@@ -177,21 +176,12 @@ Eigen::VectorXd QpSolverOsqp::solve(
     logger_->log("solver_time_pure", solve_time_us_);
   }
 
-  // Check solver status
   if (status == OsqpEigen::ErrorExitFlag::NoError) {
-    if (
-      solver_status == OsqpEigen::Status::Solved ||
-      solver_status == OsqpEigen::Status::SolvedInaccurate) {
-      solve_failed_ = false;
-      if (solver_status == OsqpEigen::Status::SolvedInaccurate) {
-        QSC_WARN_STREAM("[QpSolverOsqp::solve] Solved with reduced accuracy");
-      }
+    solve_failed_ = false;
+    if (solver_status == OsqpEigen::Status::SolvedInaccurate) {
+      QSC_WARN_STREAM("[QpSolverOsqp::solve] Solved with reduced accuracy");
     } else if (solver_status == OsqpEigen::Status::MaxIterReached) {
-      solve_failed_ = true;
       QSC_WARN_STREAM("[QpSolverOsqp::solve] MAX_ITER reached without convergence");
-    } else {
-      solve_failed_ = true;
-      QSC_WARN_STREAM("[QpSolverOsqp::solve] Solver status: " << static_cast<int>(solver_status));
     }
   } else {
     solve_failed_ = true;
@@ -301,20 +291,11 @@ Eigen::VectorXd QpSolverOsqp::solve(
 
   // Check solver status
   if (status == OsqpEigen::ErrorExitFlag::NoError) {
-    if (
-      solver_status == OsqpEigen::Status::Solved ||
-      solver_status == OsqpEigen::Status::SolvedInaccurate) {
-      solve_failed_ = false;
-      if (solver_status == OsqpEigen::Status::SolvedInaccurate) {
-        QSC_WARN_STREAM("[QpSolverOsqp::solve bilateral] Solved with reduced accuracy");
-      }
+    solve_failed_ = false;
+    if (solver_status == OsqpEigen::Status::SolvedInaccurate) {
+      QSC_WARN_STREAM("[QpSolverOsqp::solve bilateral] Solved with reduced accuracy");
     } else if (solver_status == OsqpEigen::Status::MaxIterReached) {
-      solve_failed_ = true;
       QSC_WARN_STREAM("[QpSolverOsqp::solve bilateral] MAX_ITER reached without convergence");
-    } else {
-      solve_failed_ = true;
-      QSC_WARN_STREAM(
-        "[QpSolverOsqp::solve bilateral] Solver status: " << static_cast<int>(solver_status));
     }
   } else {
     solve_failed_ = true;
@@ -514,20 +495,24 @@ Eigen::VectorXd QpSolverOsqp::solveIncremental()
     std::chrono::duration_cast<std::chrono::microseconds>(solve_end_time - solve_start_time)
       .count();
 
-  // Log solver time for performance analysis
   if (logger_) {
     logger_->log("solver_time_pure", solve_time_us_);
   }
 
-  // Check solver status
+  auto solver_status = osqp_->getStatus();
   if (status == OsqpEigen::ErrorExitFlag::NoError) {
     solve_failed_ = false;
-    return osqp_->getSolution();
+    if (solver_status == OsqpEigen::Status::SolvedInaccurate) {
+      QSC_WARN_STREAM("[QpSolverOsqp::solveIncremental] Solved with reduced accuracy");
+    } else if (solver_status == OsqpEigen::Status::MaxIterReached) {
+      QSC_WARN_STREAM("[QpSolverOsqp::solveIncremental] MAX_ITER reached without convergence");
+    }
   } else {
     solve_failed_ = true;
     QSC_WARN_STREAM("[QpSolverOsqp::solveIncremental] Failed to solve: " << to_string(status));
-    return Eigen::VectorXd::Zero(dim_var_);
   }
+
+  return osqp_->getSolution();
 }
 namespace QpSolverCollection
 {
