@@ -59,6 +59,11 @@ namespace dense
 template <typename T>
 class QP;
 }
+namespace sparse
+{
+template <typename T, typename I>
+struct QP;
+}
 }  // namespace proxqp
 }  // namespace proxsuite
 namespace qpmad
@@ -797,6 +802,7 @@ public:
 
 protected:
   std::unique_ptr<proxsuite::proxqp::dense::QP<double>> proxqp_;
+  std::unique_ptr<proxsuite::proxqp::sparse::QP<double, int>> proxqp_sparse_;
   struct ProxqpParameters
   {
     double eps_abs = 1e-6;  // Absolute tolerance for stopping criterion (||residual|| <= eps_abs)
@@ -808,6 +814,8 @@ protected:
     bool compute_timings =
       false;  // Whether to compute timing information (useful for benchmarking)
     bool check_duality_gap = false;  // Whether to check duality gap at the end of the solve
+    double rho = 1e-1;  // ADMM penalty parameter (larger values can speed up convergence but may affect accuracy)
+    bool use_sparse = false;  // Whether to use sparse matrix backend (better for large-scale problems)
   };
   ProxqpParameters proxqp_params_;
   double solve_time_us_ = 0;  // [us] Pure solve time
