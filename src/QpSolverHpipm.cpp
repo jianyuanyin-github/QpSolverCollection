@@ -27,31 +27,31 @@ void QpSolverHpipm::declare_and_update_parameters()
 {
   hpipm_params_.max_iter =
     param_manager_
-      ->declare_and_get_value("MPC.Solver_HPIPM.max_iter", 50, tam::pmg::ParameterType::INTEGER, "")
+      ->declare_and_get_value("MPC.Solver_HPIPM.max_iter", 20, tam::pmg::ParameterType::INTEGER, "")
       .as_int();
   hpipm_params_.tol_stat =
     param_manager_
       ->declare_and_get_value(
-        "MPC.Solver_HPIPM.tol_stat", 1e-4, tam::pmg::ParameterType::DOUBLE, "")
+        "MPC.Solver_HPIPM.tol_stat", 1e-3, tam::pmg::ParameterType::DOUBLE, "")
       .as_double();
   hpipm_params_.tol_eq =
     param_manager_
-      ->declare_and_get_value("MPC.Solver_HPIPM.tol_eq", 1e-4, tam::pmg::ParameterType::DOUBLE, "")
+      ->declare_and_get_value("MPC.Solver_HPIPM.tol_eq", 1e-3, tam::pmg::ParameterType::DOUBLE, "")
       .as_double();
   hpipm_params_.tol_ineq =
     param_manager_
       ->declare_and_get_value(
-        "MPC.Solver_HPIPM.tol_ineq", 1e-4, tam::pmg::ParameterType::DOUBLE, "")
+        "MPC.Solver_HPIPM.tol_ineq", 1e-3, tam::pmg::ParameterType::DOUBLE, "")
       .as_double();
   hpipm_params_.tol_comp =
     param_manager_
       ->declare_and_get_value(
-        "MPC.Solver_HPIPM.tol_comp", 1e-4, tam::pmg::ParameterType::DOUBLE, "")
+        "MPC.Solver_HPIPM.tol_comp", 1e-3, tam::pmg::ParameterType::DOUBLE, "")
       .as_double();
   hpipm_params_.warm_start =
     param_manager_
       ->declare_and_get_value(
-        "MPC.Solver_HPIPM.warm_start", 1, tam::pmg::ParameterType::INTEGER, "")
+        "MPC.Solver_HPIPM.warm_start", true, tam::pmg::ParameterType::INTEGER, "")
       .as_int();
   hpipm_params_.pred_corr =
     param_manager_
