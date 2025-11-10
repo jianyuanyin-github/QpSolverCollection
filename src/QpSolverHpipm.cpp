@@ -27,7 +27,7 @@ void QpSolverHpipm::declare_and_update_parameters()
 {
   hpipm_params_.max_iter =
     param_manager_
-      ->declare_and_get_value("MPC.Solver_HPIPM.max_iter", 20, tam::pmg::ParameterType::INTEGER, "")
+      ->declare_and_get_value("MPC.Solver_HPIPM.max_iter", 18, tam::pmg::ParameterType::INTEGER, "")
       .as_int();
   hpipm_params_.tol_stat =
     param_manager_
@@ -51,7 +51,7 @@ void QpSolverHpipm::declare_and_update_parameters()
   hpipm_params_.warm_start =
     param_manager_
       ->declare_and_get_value(
-        "MPC.Solver_HPIPM.warm_start", true, tam::pmg::ParameterType::INTEGER, "")
+        "MPC.Solver_HPIPM.warm_start", 1, tam::pmg::ParameterType::INTEGER, "")
       .as_int();
   hpipm_params_.pred_corr =
     param_manager_

@@ -59,7 +59,7 @@ void QpSolverProxqp::declare_and_update_parameters()
   proxqp_params_.use_sparse =
     param_manager_
       ->declare_and_get_value(
-        "MPC.Solver_PROXQP.use_sparse", true, tam::pmg::ParameterType::BOOL, "")
+        "MPC.Solver_PROXQP.use_sparse", false, tam::pmg::ParameterType::BOOL, "")
       .as_bool();
   previous_param_state_hash_ = param_manager_->get_state_hash();
 }
@@ -431,13 +431,12 @@ bool QpSolverProxqp::updateInequalityVector(const Eigen::Ref<const Eigen::Vector
     return false;
   }
 
-  constexpr double kBoundLimit = 1e8;
   Eigen::VectorXd d_with_bound_min(dim_ineq_ + dim_var_);
   Eigen::VectorXd d_with_bound_max(dim_ineq_ + dim_var_);
   d_with_bound_min.head(dim_ineq_) = Eigen::VectorXd::Constant(dim_ineq_, -1e8);
-  d_with_bound_min.tail(dim_var_) = Eigen::VectorXd::Constant(dim_var_, -kBoundLimit);
+  d_with_bound_min.tail(dim_var_) = Eigen::VectorXd::Constant(dim_var_, -std::numeric_limits<double>::infinity());
   d_with_bound_max.head(dim_ineq_) = d;
-  d_with_bound_max.tail(dim_var_) = Eigen::VectorXd::Constant(dim_var_, kBoundLimit);
+  d_with_bound_max.tail(dim_var_) = Eigen::VectorXd::Constant(dim_var_, std::numeric_limits<double>::infinity());
 
   if (proxqp_params_.use_sparse && proxqp_sparse_) {
     proxqp_sparse_->update(
@@ -468,13 +467,12 @@ bool QpSolverProxqp::updateInequalityVectorBothSide(
     return false;
   }
 
-  constexpr double kBoundLimit = 1e8;
   Eigen::VectorXd l_with_bound(dim_ineq_ + dim_var_);
   Eigen::VectorXd u_with_bound(dim_ineq_ + dim_var_);
   l_with_bound.head(dim_ineq_) = d_lower;
-  l_with_bound.tail(dim_var_) = Eigen::VectorXd::Constant(dim_var_, -kBoundLimit);
+  l_with_bound.tail(dim_var_) = Eigen::VectorXd::Constant(dim_var_, -std::numeric_limits<double>::infinity());
   u_with_bound.head(dim_ineq_) = d_upper;
-  u_with_bound.tail(dim_var_) = Eigen::VectorXd::Constant(dim_var_, kBoundLimit);
+  u_with_bound.tail(dim_var_) = Eigen::VectorXd::Constant(dim_var_, std::numeric_limits<double>::infinity());
 
   if (proxqp_params_.use_sparse && proxqp_sparse_) {
     proxqp_sparse_->update(
@@ -561,48 +559,51 @@ Eigen::VectorXd QpSolverProxqp::solveIncremental()
     std::chrono::duration_cast<std::chrono::microseconds>(solve_end_time - solve_start_time)
       .count();
 
-  // Log solver time and diagnostics for performance analysis
-  if (logger_) {
-    logger_->log("solver_time_pure", solve_time_us_);
-    if (proxqp_params_.use_sparse && proxqp_sparse_) {
-      logger_->log("proxqp_iter", proxqp_sparse_->results.info.iter);
-      logger_->log("proxqp_pri_res", proxqp_sparse_->results.info.pri_res);
-      logger_->log("proxqp_dua_res", proxqp_sparse_->results.info.dua_res);
-    } else if (proxqp_) {
-      logger_->log("proxqp_iter", proxqp_->results.info.iter);
-      logger_->log("proxqp_pri_res", proxqp_->results.info.pri_res);
-      logger_->log("proxqp_dua_res", proxqp_->results.info.dua_res);
-    }
-  }
-
   if (proxqp_params_.use_sparse && proxqp_sparse_) {
     auto status = proxqp_sparse_->results.info.status;
-    // Accept SOLVED, MAX_ITER_REACHED, and CLOSEST_PRIMAL_FEASIBLE as success
+    // Check status first before accessing any results
     if (
       status == proxsuite::proxqp::QPSolverOutput::PROXQP_PRIMAL_INFEASIBLE ||
       status == proxsuite::proxqp::QPSolverOutput::PROXQP_DUAL_INFEASIBLE) {
       solve_failed_ = true;
       QSC_WARN_STREAM(
         "[QpSolverProxqp::solveIncremental sparse] Failed to solve: " << static_cast<int>(status));
+
     } else {
       solve_failed_ = false;
+      // Log solver time and diagnostics only on success
+      if (logger_) {
+        logger_->log("solver_time_pure", solve_time_us_);
+        logger_->log("proxqp_iter", proxqp_sparse_->results.info.iter);
+        logger_->log("proxqp_pri_res", proxqp_sparse_->results.info.pri_res);
+        logger_->log("proxqp_dua_res", proxqp_sparse_->results.info.dua_res);
+      }
+      return proxqp_sparse_->results.x;
     }
-    return proxqp_sparse_->results.x;
   } else if (proxqp_) {
     auto status = proxqp_->results.info.status;
-    // Accept SOLVED, MAX_ITER_REACHED, and CLOSEST_PRIMAL_FEASIBLE as success
+    // Check status first before accessing any results
     if (
       status == proxsuite::proxqp::QPSolverOutput::PROXQP_PRIMAL_INFEASIBLE ||
       status == proxsuite::proxqp::QPSolverOutput::PROXQP_DUAL_INFEASIBLE) {
       solve_failed_ = true;
       QSC_WARN_STREAM(
         "[QpSolverProxqp::solveIncremental] Failed to solve: " << static_cast<int>(status));
+      // Do not access results when solve failed
+      return Eigen::VectorXd::Zero(dim_var_);
     } else {
       solve_failed_ = false;
+      // Log solver time and diagnostics only on success
+      if (logger_) {
+        logger_->log("solver_time_pure", solve_time_us_);
+        logger_->log("proxqp_iter", proxqp_->results.info.iter);
+        logger_->log("proxqp_pri_res", proxqp_->results.info.pri_res);
+        logger_->log("proxqp_dua_res", proxqp_->results.info.dua_res);
+      }
+      return proxqp_->results.x;
     }
-    return proxqp_->results.x;
   }
-  return Eigen::VectorXd::Zero(0);
+  return Eigen::VectorXd::Zero(dim_var_);
 }
 namespace QpSolverCollection
 {
